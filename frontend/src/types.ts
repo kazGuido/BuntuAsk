@@ -14,8 +14,16 @@ export type User = {
 
 export type Project = {
   id: number;
+  owner_id?: number | null;
+  approved_by_id?: number | null;
   name: string;
+  description: string;
+  language: string;
+  guidelines: string;
+  sample_payload: Record<string, unknown>;
   task_type: "TEXT" | "AUDIO" | "IMAGE";
+  workflow: "TRANSLATION" | "AUDIO_TRANSCRIPTION" | "VOICE_RECORDING" | "IMAGE_LABELING";
+  status: "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "PAUSED" | "REJECTED";
   base_reward_annotator: number;
   base_reward_reviewer: number;
   required_reviews: number;

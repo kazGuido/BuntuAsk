@@ -19,7 +19,8 @@
     "react-dom": "latest",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "latest",
-    "vite": "latest"
+    "vite": "latest",
+    "wavesurfer.js": "^7.12.6"
   },
   "devDependencies": {
     "@types/react": "latest",

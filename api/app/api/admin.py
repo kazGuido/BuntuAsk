@@ -15,6 +15,7 @@ from app.api.schemas import (
     HfImportRequest,
     HfImportResponse,
     ImportReviewResolveRequest,
+    ProjectApprovalRequest,
     ProjectCreate,
     ProjectRead,
     WithdrawalApproveRequest,
@@ -30,6 +31,8 @@ from app.models import (
     NotificationChannel,
     Project,
     ProjectPolicy,
+    ProjectStatus,
+    ProjectWorkflow,
     Review,
     ReviewDecision,
     Submission,
@@ -48,8 +51,16 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 def serialize_project(project: Project, policy: ProjectPolicy | None) -> ProjectRead:
     return ProjectRead(
         id=project.id or 0,
+        owner_id=project.owner_id,
+        approved_by_id=project.approved_by_id,
         name=project.name,
+        description=project.description,
+        language=project.language,
+        guidelines=project.guidelines,
+        sample_payload=project.sample_payload,
         task_type=project.task_type,
+        workflow=project.workflow,
+        status=project.status,
         base_reward_annotator=project.base_reward_annotator,
         base_reward_reviewer=project.base_reward_reviewer,
         required_reviews=policy.required_reviews if policy else 2,
@@ -227,8 +238,16 @@ def create_project(
     session: Annotated[Session, Depends(get_session)],
 ) -> ProjectRead:
     project = Project(
+        owner_id=_admin.id,
+        approved_by_id=_admin.id,
         name=payload.name,
+        description=payload.description,
+        language=payload.language,
+        guidelines=payload.guidelines,
+        sample_payload=payload.sample_payload,
         task_type=payload.task_type,
+        workflow=payload.workflow,
+        status=ProjectStatus.ACTIVE,
         base_reward_annotator=payload.base_reward_annotator,
         base_reward_reviewer=payload.base_reward_reviewer,
     )
@@ -318,7 +337,7 @@ def import_review_tasks(
     tasks = session.exec(
         select(Task).where(Task.status == TaskStatus.IMPORT_REVIEW).order_by(Task.id).limit(100)
     ).all()
-    return [serialize_task(task).model_dump() for task in tasks]
+    return [serialize_task(task, session).model_dump() for task in tasks]
 
 
 @router.post("/import-review/resolve")
@@ -444,7 +463,7 @@ def conflict_tasks(
     session: Annotated[Session, Depends(get_session)],
 ) -> list[dict[str, Any]]:
     tasks = session.exec(select(Task).where(Task.status == TaskStatus.CONFLICT).order_by(Task.id)).all()
-    return [serialize_task(task).model_dump() for task in tasks]
+    return [serialize_task(task, session).model_dump() for task in tasks]
 
 
 @router.post("/conflicts/resolve")

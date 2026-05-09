@@ -1,8 +1,17 @@
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.models import NotificationChannel, NotificationDeliveryStatus, ReviewDecision, TaskStatus, TaskType, UserRole
+from app.models import (
+    NotificationChannel,
+    NotificationDeliveryStatus,
+    ProjectStatus,
+    ProjectWorkflow,
+    ReviewDecision,
+    TaskStatus,
+    TaskType,
+    UserRole,
+)
 
 
 class UserCreate(BaseModel):
@@ -38,21 +47,50 @@ class TokenResponse(BaseModel):
 
 class ProjectCreate(BaseModel):
     name: str
+    description: str = Field(default="", max_length=1000)
+    language: str = Field(default="", max_length=80)
+    guidelines: str = ""
+    sample_payload: dict[str, Any] = Field(default_factory=dict)
     task_type: TaskType
+    workflow: ProjectWorkflow = ProjectWorkflow.TRANSLATION
     base_reward_annotator: float
     base_reward_reviewer: float
     required_reviews: int = 2
     min_accuracy_threshold: float = 0.8
+
+    @model_validator(mode="after")
+    def validate_workflow_media(self) -> "ProjectCreate":
+        if self.workflow in {ProjectWorkflow.AUDIO_TRANSCRIPTION, ProjectWorkflow.VOICE_RECORDING} and self.task_type != TaskType.AUDIO:
+            raise ValueError("Audio workflows require task_type=AUDIO")
+        if self.workflow == ProjectWorkflow.IMAGE_LABELING and self.task_type != TaskType.IMAGE:
+            raise ValueError("Image labeling requires task_type=IMAGE")
+        if self.workflow == ProjectWorkflow.TRANSLATION and self.task_type != TaskType.TEXT:
+            raise ValueError("Translation requires task_type=TEXT")
+        return self
 
 
 class ProjectRead(BaseModel):
     id: int
+    owner_id: int | None = None
+    approved_by_id: int | None = None
     name: str
+    description: str = ""
+    language: str = ""
+    guidelines: str = ""
+    sample_payload: dict[str, Any] = Field(default_factory=dict)
     task_type: TaskType
+    workflow: ProjectWorkflow
+    status: ProjectStatus
     base_reward_annotator: float
     base_reward_reviewer: float
     required_reviews: int = 2
     min_accuracy_threshold: float = 0.8
+
+
+class ProjectApprovalRequest(BaseModel):
+    project_id: int
+    approved: bool
+    reason: str = ""
 
 
 class ClaimRequest(BaseModel):
@@ -75,6 +113,8 @@ class SubmissionCreate(BaseModel):
     keystroke_count: int = 0
     time_spent_ms: int = 0
     tab_switches: int = 0
+    total_audio_played_ms: int = 0
+    unique_audio_coverage_ms: int = 0
 
 
 class SubmissionRead(BaseModel):

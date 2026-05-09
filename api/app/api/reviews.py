@@ -34,7 +34,7 @@ def review_queue(
     return [
         SubmissionRead(
             id=submission.id or 0,
-            task=serialize_task(task),
+            task=serialize_task(task, session),
             annotator_id=submission.annotator_id,
             result_payload=submission.result_payload,
             keystroke_count=submission.keystroke_count,

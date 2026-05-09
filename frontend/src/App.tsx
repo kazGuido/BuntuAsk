@@ -70,7 +70,7 @@ export default function App() {
       <main className="mx-auto max-w-5xl px-3 py-5 sm:px-6 sm:py-8">
         <AnimatePresence mode="wait">
           <motion.div key={view} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
-            {view === "dashboard" && <Dashboard user={user} setView={setView} />}
+            {view === "dashboard" && <Dashboard user={user} setView={setView} api={api} />}
             {view === "annotate" && <TaskSession api={api} onDone={() => setView("dashboard")} />}
             {view === "review" && <ReviewQueue api={api} onDone={() => setView("dashboard")} />}
             {view === "admin" && <AdminDashboard api={api} onDone={() => setView("dashboard")} />}

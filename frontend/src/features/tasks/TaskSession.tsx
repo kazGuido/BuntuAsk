@@ -9,6 +9,9 @@ import { Textarea } from "../../components/ui/input";
 import { ApiClient } from "../../lib/api";
 import { taskPrompt } from "../../lib/utils";
 import { Task } from "../../types";
+import { AudioTranscriptionCard } from "./AudioTranscriptionCard";
+import { taskWorkflow } from "./audio";
+import { VoiceRecordingCard } from "./VoiceRecordingCard";
 
 export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => void }) {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -62,17 +65,19 @@ export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => voi
     oscillator.stop(ctx.currentTime + 0.18);
   }
 
-  async function submit() {
+  async function submit(extraPayload: Record<string, unknown> = {}) {
     if (!current || !answer.trim()) return;
     try {
       await api("/tasks/submit", {
         method: "POST",
         body: JSON.stringify({
           task_id: current.id,
-          result_payload: { text: answer.trim() },
+          result_payload: { text: answer.trim(), ...extraPayload },
           keystroke_count: keystrokes,
           time_spent_ms: Date.now() - startedAt,
           tab_switches: tabSwitches,
+          total_audio_played_ms: Number(extraPayload.total_audio_played_ms || 0),
+          unique_audio_coverage_ms: Number(extraPayload.unique_audio_coverage_ms || 0),
         }),
       });
       ding();
@@ -94,6 +99,33 @@ export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => voi
   if (loading) return <Loading label="Claiming a fresh task batch..." />;
   if (error && !current) return <EmptyState title="No tasks available" message={error} onDone={onDone} />;
   if (!current) return <EmptyState title="All caught up" message="There are no available tasks right now." onDone={onDone} />;
+  const workflow = taskWorkflow(current);
+
+  async function submitAudioPayload(payload: Record<string, unknown>) {
+    if (!current) return;
+    try {
+      await api("/tasks/submit", {
+        method: "POST",
+        body: JSON.stringify({
+          task_id: current.id,
+          result_payload: payload,
+          keystroke_count: keystrokes,
+          time_spent_ms: Date.now() - startedAt,
+          tab_switches: tabSwitches,
+          total_audio_played_ms: Number(payload.total_audio_played_ms || 0),
+          unique_audio_coverage_ms: Number(payload.unique_audio_coverage_ms || 0),
+        }),
+      });
+      ding();
+      if (index + 1 >= tasks.length) onDone();
+      else {
+        setIndex((value) => value + 1);
+        resetForNext();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Submit failed");
+    }
+  }
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -111,6 +143,13 @@ export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => voi
           <AlertTriangle size={18} /> Tab switching detected.
         </div>
       )}
+      {workflow === "AUDIO_TRANSCRIPTION" && (
+        <AudioTranscriptionCard key={current.id} api={api} task={current} keystrokes={keystrokes} setKeystrokes={setKeystrokes} submit={submitAudioPayload} error={error} setError={setError} />
+      )}
+      {workflow === "VOICE_RECORDING" && (
+        <VoiceRecordingCard key={current.id} api={api} task={current} submit={submitAudioPayload} error={error} setError={setError} />
+      )}
+      {workflow !== "AUDIO_TRANSCRIPTION" && workflow !== "VOICE_RECORDING" && (
       <AnimatePresence mode="wait">
         <motion.div key={current.id} initial={{ x: 80, opacity: 0, rotate: 1 }} animate={{ x: 0, opacity: 1, rotate: 0 }} exit={{ x: -80, opacity: 0, rotate: -1 }}>
           <Card className="space-y-5">
@@ -137,13 +176,14 @@ export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => voi
                 <span>{keystrokes} keys</span>
                 <span>{tabSwitches} switches</span>
               </div>
-              <Button onClick={submit} className="border-[#1899d6] bg-[#1cb0f6] text-white">
+              <Button onClick={() => submit()} className="border-[#1899d6] bg-[#1cb0f6] text-white">
                 Submit <Sparkles className="ml-1 inline" size={16} />
               </Button>
             </div>
           </Card>
         </motion.div>
       </AnimatePresence>
+      )}
     </div>
   );
 }

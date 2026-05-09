@@ -18,6 +18,21 @@ class TaskType(str, Enum):
     IMAGE = "IMAGE"
 
 
+class ProjectWorkflow(str, Enum):
+    TRANSLATION = "TRANSLATION"
+    AUDIO_TRANSCRIPTION = "AUDIO_TRANSCRIPTION"
+    VOICE_RECORDING = "VOICE_RECORDING"
+    IMAGE_LABELING = "IMAGE_LABELING"
+
+
+class ProjectStatus(str, Enum):
+    DRAFT = "DRAFT"
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+    ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
+    REJECTED = "REJECTED"
+
+
 class TaskStatus(str, Enum):
     IMPORT_REVIEW = "IMPORT_REVIEW"
     AVAILABLE = "AVAILABLE"
@@ -76,6 +91,9 @@ class AuditAction(str, Enum):
     TASK_SUBMITTED = "TASK_SUBMITTED"
     REVIEW_CREATED = "REVIEW_CREATED"
     PROJECT_CREATED = "PROJECT_CREATED"
+    PROJECT_SUBMITTED = "PROJECT_SUBMITTED"
+    PROJECT_APPROVED = "PROJECT_APPROVED"
+    PROJECT_REJECTED = "PROJECT_REJECTED"
     HF_IMPORT_QUEUED = "HF_IMPORT_QUEUED"
     HF_IMPORT_COMPLETED = "HF_IMPORT_COMPLETED"
     HF_TASK_APPROVED = "HF_TASK_APPROVED"
@@ -107,17 +125,33 @@ class User(SQLModel, table=True):
     fraud_alerts: list["FraudAlert"] = Relationship(back_populates="user")
     claimed_tasks: list["Task"] = Relationship(back_populates="claimed_by")
     notifications: list["Notification"] = Relationship(back_populates="user")
+    owned_projects: list["Project"] = Relationship(
+        back_populates="owner",
+        sa_relationship_kwargs={"foreign_keys": "[Project.owner_id]"},
+    )
 
 
 class Project(SQLModel, table=True):
     __tablename__ = "projects"
 
     id: int | None = Field(default=None, primary_key=True)
+    owner_id: int | None = Field(default=None, foreign_key="users.id", nullable=True, index=True)
+    approved_by_id: int | None = Field(default=None, foreign_key="users.id", nullable=True, index=True)
     name: str = Field(index=True, max_length=160)
+    description: str = Field(default="", max_length=1000)
+    language: str = Field(default="", max_length=80)
+    guidelines: str = Field(default="")
+    sample_payload: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
     task_type: TaskType
+    workflow: ProjectWorkflow = Field(default=ProjectWorkflow.TRANSLATION, index=True)
+    status: ProjectStatus = Field(default=ProjectStatus.PENDING_APPROVAL, index=True)
     base_reward_annotator: float
     base_reward_reviewer: float
 
+    owner: User | None = Relationship(
+        back_populates="owned_projects",
+        sa_relationship_kwargs={"foreign_keys": "[Project.owner_id]"},
+    )
     policy: Optional["ProjectPolicy"] = Relationship(back_populates="project")
     tasks: list["Task"] = Relationship(back_populates="project")
 
