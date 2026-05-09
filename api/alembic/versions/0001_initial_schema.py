@@ -19,6 +19,23 @@ depends_on: str | Sequence[str] | None = None
 
 user_role = postgresql.ENUM("ADMIN", "ANNOTATOR", "REVIEWER", name="user_role", create_type=False)
 task_type = postgresql.ENUM("TEXT", "AUDIO", "IMAGE", name="task_type", create_type=False)
+project_workflow = postgresql.ENUM(
+    "TRANSLATION",
+    "AUDIO_TRANSCRIPTION",
+    "VOICE_RECORDING",
+    "IMAGE_LABELING",
+    name="project_workflow",
+    create_type=False,
+)
+project_status = postgresql.ENUM(
+    "DRAFT",
+    "PENDING_APPROVAL",
+    "ACTIVE",
+    "PAUSED",
+    "REJECTED",
+    name="project_status",
+    create_type=False,
+)
 task_status = postgresql.ENUM(
     "IMPORT_REVIEW",
     "AVAILABLE",
@@ -57,6 +74,9 @@ audit_action = postgresql.ENUM(
     "TASK_SUBMITTED",
     "REVIEW_CREATED",
     "PROJECT_CREATED",
+    "PROJECT_SUBMITTED",
+    "PROJECT_APPROVED",
+    "PROJECT_REJECTED",
     "HF_IMPORT_QUEUED",
     "HF_IMPORT_COMPLETED",
     "HF_TASK_APPROVED",
@@ -76,6 +96,8 @@ def upgrade() -> None:
     bind = op.get_bind()
     user_role.create(bind, checkfirst=True)
     task_type.create(bind, checkfirst=True)
+    project_workflow.create(bind, checkfirst=True)
+    project_status.create(bind, checkfirst=True)
     task_status.create(bind, checkfirst=True)
     review_decision.create(bind, checkfirst=True)
     transaction_type.create(bind, checkfirst=True)
@@ -106,13 +128,23 @@ def upgrade() -> None:
     op.create_table(
         "projects",
         sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("owner_id", sa.Integer(), nullable=True),
+        sa.Column("approved_by_id", sa.Integer(), nullable=True),
         sa.Column("name", sa.String(length=160), nullable=False),
         sa.Column("task_type", task_type, nullable=False),
+        sa.Column("workflow", project_workflow, nullable=False),
+        sa.Column("status", project_status, nullable=False),
         sa.Column("base_reward_annotator", sa.Float(), nullable=False),
         sa.Column("base_reward_reviewer", sa.Float(), nullable=False),
+        sa.ForeignKeyConstraint(["approved_by_id"], ["users.id"]),
+        sa.ForeignKeyConstraint(["owner_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
+    op.create_index(op.f("ix_projects_approved_by_id"), "projects", ["approved_by_id"], unique=False)
     op.create_index(op.f("ix_projects_name"), "projects", ["name"], unique=False)
+    op.create_index(op.f("ix_projects_owner_id"), "projects", ["owner_id"], unique=False)
+    op.create_index(op.f("ix_projects_status"), "projects", ["status"], unique=False)
+    op.create_index(op.f("ix_projects_workflow"), "projects", ["workflow"], unique=False)
 
     op.create_table(
         "project_policies",
@@ -322,7 +354,11 @@ def downgrade() -> None:
     op.drop_table("tasks")
     op.drop_index(op.f("ix_project_policies_project_id"), table_name="project_policies")
     op.drop_table("project_policies")
+    op.drop_index(op.f("ix_projects_workflow"), table_name="projects")
+    op.drop_index(op.f("ix_projects_status"), table_name="projects")
+    op.drop_index(op.f("ix_projects_owner_id"), table_name="projects")
     op.drop_index(op.f("ix_projects_name"), table_name="projects")
+    op.drop_index(op.f("ix_projects_approved_by_id"), table_name="projects")
     op.drop_table("projects")
     op.drop_index(op.f("ix_users_whatsapp_number"), table_name="users")
     op.drop_index(op.f("ix_users_username"), table_name="users")
@@ -339,5 +375,7 @@ def downgrade() -> None:
     transaction_type.drop(bind, checkfirst=True)
     review_decision.drop(bind, checkfirst=True)
     task_status.drop(bind, checkfirst=True)
+    project_status.drop(bind, checkfirst=True)
+    project_workflow.drop(bind, checkfirst=True)
     task_type.drop(bind, checkfirst=True)
     user_role.drop(bind, checkfirst=True)

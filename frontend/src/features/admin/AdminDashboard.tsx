@@ -11,6 +11,7 @@ import { AuditLog, FraudAlert, ImportJob, Project, Task } from "../../types";
 
 export function AdminDashboard({ api, onDone }: { api: ApiClient; onDone: () => void }) {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [pendingProjects, setPendingProjects] = useState<Project[]>([]);
   const [alerts, setAlerts] = useState<FraudAlert[]>([]);
   const [conflicts, setConflicts] = useState<Task[]>([]);
   const [importReviewTasks, setImportReviewTasks] = useState<Task[]>([]);
@@ -23,8 +24,9 @@ export function AdminDashboard({ api, onDone }: { api: ApiClient; onDone: () => 
   const [message, setMessage] = useState("");
 
   async function refresh() {
-    const [projectData, alertData, conflictData, withdrawalData, reviewData, jobData, auditData] = await Promise.all([
+    const [projectData, pendingProjectData, alertData, conflictData, withdrawalData, reviewData, jobData, auditData] = await Promise.all([
       api<Project[]>("/admin/projects"),
+      api<Project[]>("/projects/pending"),
       api<FraudAlert[]>("/admin/fraud-alerts"),
       api<Task[]>("/admin/conflicts"),
       api<Array<Record<string, unknown>>>("/admin/withdrawals"),
@@ -33,6 +35,7 @@ export function AdminDashboard({ api, onDone }: { api: ApiClient; onDone: () => 
       api<AuditLog[]>("/admin/audit-logs"),
     ]);
     setProjects(projectData);
+    setPendingProjects(pendingProjectData);
     setAlerts(alertData);
     setConflicts(conflictData);
     setWithdrawals(withdrawalData);
@@ -55,6 +58,7 @@ export function AdminDashboard({ api, onDone }: { api: ApiClient; onDone: () => 
       body: JSON.stringify({
         name: String(form.get("name")),
         task_type: String(form.get("task_type")),
+        workflow: String(form.get("workflow")),
         base_reward_annotator: Number(form.get("base_reward_annotator")),
         base_reward_reviewer: Number(form.get("base_reward_reviewer")),
         required_reviews: Number(form.get("required_reviews")),
@@ -70,6 +74,7 @@ export function AdminDashboard({ api, onDone }: { api: ApiClient; onDone: () => 
       <button onClick={onDone} className="text-sm font-black uppercase text-gray-400">Dashboard</button>
       {message && <p className="rounded-2xl bg-sky-50 p-3 text-sm font-bold text-sky-600">{message}</p>}
       <ProjectPanel projects={projects} createProject={createProject} openImport={setImportProject} />
+      <PendingProjectsPanel api={api} projects={pendingProjects} refresh={refresh} />
       <NotificationSendPanel api={api} setMessage={setMessage} />
       <div className="grid gap-5 lg:grid-cols-2">
         <FraudDesk api={api} alerts={alerts} refresh={refresh} />
@@ -95,6 +100,12 @@ function ProjectPanel({ projects, createProject, openImport }: { projects: Proje
       <h2 className="mb-4 flex items-center gap-2 text-2xl font-black"><Database /> Project config</h2>
       <form onSubmit={createProject} className="grid gap-3 sm:grid-cols-2">
         <Input name="name" required placeholder="Project name" />
+        <select name="workflow" className="rounded-2xl border-2 border-gray-200 px-4 py-3 font-bold">
+          <option value="TRANSLATION">Translation</option>
+          <option value="AUDIO_TRANSCRIPTION">Audio-to-text transcription</option>
+          <option value="VOICE_RECORDING">Voice recording</option>
+          <option value="IMAGE_LABELING">Image labeling</option>
+        </select>
         <select name="task_type" className="rounded-2xl border-2 border-gray-200 px-4 py-3 font-bold">
           <option value="TEXT">Text</option>
           <option value="AUDIO">Audio</option>
@@ -111,12 +122,39 @@ function ProjectPanel({ projects, createProject, openImport }: { projects: Proje
           <div key={project.id} className="flex flex-col gap-3 rounded-2xl bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-black text-[#3c3c3c]">{project.name}</p>
-              <p className="text-xs font-bold text-gray-400">{project.task_type} - {project.required_reviews} reviews</p>
+              <p className="text-xs font-bold text-gray-400">{project.workflow} - {project.status} - {project.required_reviews} reviews</p>
             </div>
             <Button onClick={() => openImport(project)} className="border-[#46a302] bg-[#58cc02] text-white">Import from HuggingFace</Button>
           </div>
         ))}
       </div>
+    </Card>
+  );
+}
+
+function PendingProjectsPanel({ api, projects, refresh }: { api: ApiClient; projects: Project[]; refresh: () => void }) {
+  async function decide(project: Project, approved: boolean) {
+    await api("/projects/approve", {
+      method: "POST",
+      body: JSON.stringify({ project_id: project.id, approved, reason: approved ? "" : "Rejected during admin validation" }),
+    });
+    await refresh();
+  }
+
+  return (
+    <Card>
+      <h2 className="mb-3 text-2xl font-black">Project approvals</h2>
+      {projects.map((project) => (
+        <div key={project.id} className="mb-3 rounded-2xl bg-yellow-50 p-4">
+          <p className="font-black text-[#3c3c3c]">{project.name}</p>
+          <p className="text-sm font-bold text-gray-500">{project.workflow} / {project.task_type} / owner #{project.owner_id}</p>
+          <div className="mt-3 flex gap-3">
+            <Button onClick={() => decide(project, true)} className="border-[#46a302] bg-[#58cc02] text-white">Approve</Button>
+            <Button onClick={() => decide(project, false)} className="border-[#cc3f3f] bg-[#ff4b4b] text-white">Reject</Button>
+          </div>
+        </div>
+      ))}
+      {!projects.length && <p className="text-sm font-bold text-gray-400">No pending project approvals.</p>}
     </Card>
   );
 }

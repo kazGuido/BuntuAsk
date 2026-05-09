@@ -1,10 +1,13 @@
 import { Flame, Wallet } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
 
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
-import { User, View } from "../../types";
+import { Input } from "../../components/ui/input";
+import { ApiClient } from "../../lib/api";
+import { Project, User, View } from "../../types";
 
-export function Dashboard({ user, setView }: { user: User; setView: (view: View) => void }) {
+export function Dashboard({ user, setView, api }: { user: User; setView: (view: View) => void; api: ApiClient }) {
   return (
     <div className="space-y-5 sm:space-y-8">
       <Card className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
@@ -55,6 +58,76 @@ export function Dashboard({ user, setView }: { user: User; setView: (view: View)
           Open admin dashboard
         </Button>
       )}
+      <ProjectProposalPanel api={api} />
     </div>
+  );
+}
+
+function ProjectProposalPanel({ api }: { api: ApiClient }) {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [message, setMessage] = useState("");
+
+  async function load() {
+    setProjects(await api<Project[]>("/projects/mine"));
+  }
+
+  useEffect(() => {
+    load().catch(() => undefined);
+  }, []);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    await api<Project>("/projects", {
+      method: "POST",
+      body: JSON.stringify({
+        name: String(form.get("name")),
+        task_type: String(form.get("task_type")),
+        workflow: String(form.get("workflow")),
+        base_reward_annotator: Number(form.get("base_reward_annotator")),
+        base_reward_reviewer: Number(form.get("base_reward_reviewer")),
+        required_reviews: Number(form.get("required_reviews")),
+        min_accuracy_threshold: Number(form.get("min_accuracy_threshold")),
+      }),
+    });
+    event.currentTarget.reset();
+    setMessage("Project submitted for admin validation.");
+    await load();
+  }
+
+  return (
+    <Card>
+      <h3 className="text-2xl font-black text-[#3c3c3c]">Submit a data project</h3>
+      <p className="my-2 text-sm font-semibold text-gray-500">Third-party projects stay pending until admin validation. Audio workflows support ASR transcription and voice recording.</p>
+      {message && <p className="mb-3 rounded-2xl bg-green-50 p-3 text-sm font-bold text-green-600">{message}</p>}
+      <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
+        <Input name="name" required placeholder="Project name" />
+        <select name="workflow" className="rounded-2xl border-2 border-gray-200 px-4 py-3 font-bold">
+          <option value="TRANSLATION">Translation</option>
+          <option value="AUDIO_TRANSCRIPTION">Audio-to-text transcription</option>
+          <option value="VOICE_RECORDING">Voice recording</option>
+          <option value="IMAGE_LABELING">Image labeling</option>
+        </select>
+        <select name="task_type" className="rounded-2xl border-2 border-gray-200 px-4 py-3 font-bold">
+          <option value="TEXT">Text</option>
+          <option value="AUDIO">Audio</option>
+          <option value="IMAGE">Image</option>
+        </select>
+        <Input name="base_reward_annotator" required type="number" step="0.001" placeholder="Annotator reward" />
+        <Input name="base_reward_reviewer" required type="number" step="0.001" placeholder="Reviewer reward" />
+        <Input name="required_reviews" defaultValue={2} type="number" />
+        <Input name="min_accuracy_threshold" defaultValue={0.8} type="number" step="0.01" />
+        <Button className="border-[#1899d6] bg-[#1cb0f6] text-white sm:col-span-2">Submit for approval</Button>
+      </form>
+      {projects.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {projects.slice(0, 4).map((project) => (
+            <div key={project.id} className="rounded-2xl bg-gray-50 p-3 text-sm font-bold text-gray-500">
+              {project.name} - {project.workflow} - {project.status}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }

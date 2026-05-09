@@ -10,7 +10,7 @@ export function cn(...inputs: ClassValue[]) {
 export function taskPrompt(task?: Task) {
   if (!task) return "";
   const payload = task.source_payload;
-  for (const key of ["prompt", "french", "source", "text", "instruction"]) {
+  for (const key of ["prompt_text", "prompt", "french", "source", "text", "instruction"]) {
     const value = payload[key];
     if (typeof value === "string") return value;
   }

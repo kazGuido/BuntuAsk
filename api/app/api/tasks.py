@@ -11,17 +11,34 @@ from app.api.notifications import create_notification, notify_user_id
 from app.api.schemas import ClaimRequest, SubmissionCreate, SubmissionRead, TaskRead
 from app.api.utils import client_ip, utc_now
 from app.db.session import get_session
-from app.models import AuditAction, NotificationChannel, Submission, Task, TaskStatus, User, UserRole
+from app.models import (
+    AuditAction,
+    NotificationChannel,
+    Project,
+    ProjectStatus,
+    ProjectWorkflow,
+    Submission,
+    Task,
+    TaskStatus,
+    User,
+    UserRole,
+)
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-def serialize_task(task: Task) -> TaskRead:
+def serialize_task(task: Task, session: Session | None = None) -> TaskRead:
+    source_payload = dict(task.source_payload)
+    if session is not None and "project_workflow" not in source_payload:
+        project = session.get(Project, task.project_id)
+        if project is not None:
+            source_payload["project_workflow"] = project.workflow.value
+            source_payload["project_status"] = project.status.value
     return TaskRead(
         id=task.id or 0,
         project_id=task.project_id,
-        source_payload=task.source_payload,
+        source_payload=source_payload,
         status=task.status,
         locked_until=task.locked_until.isoformat() if task.locked_until else None,
         storage_key=task.storage_key,
@@ -38,9 +55,11 @@ def claim_tasks(
     now = utc_now()
     statement = (
         select(Task)
+        .join(Project, Task.project_id == Project.id)
         .where(
+            Project.status == ProjectStatus.ACTIVE,
             (Task.status == TaskStatus.AVAILABLE)
-            | ((Task.status == TaskStatus.CLAIMED) & (Task.locked_until < now))
+            | ((Task.status == TaskStatus.CLAIMED) & (Task.locked_until < now)),
         )
         .order_by(Task.id)
         .limit(payload.count)
@@ -72,7 +91,7 @@ def claim_tasks(
             metadata={"task_ids": [task.id for task in tasks]},
         )
     session.commit()
-    return [serialize_task(task) for task in tasks]
+    return [serialize_task(task, session) for task in tasks]
 
 
 @router.post("/submit", response_model=SubmissionRead)
@@ -98,11 +117,38 @@ def submit_task(
         session.commit()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Task claim expired")
 
+    project = session.get(Project, task.project_id)
+    if project is None or project.status != ProjectStatus.ACTIVE:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Project is not active")
+    result_payload = dict(payload.result_payload)
+    if project.workflow == ProjectWorkflow.AUDIO_TRANSCRIPTION:
+        duration_ms = int(task.source_payload.get("duration_ms") or 0)
+        listened_ms = max(payload.total_audio_played_ms, payload.unique_audio_coverage_ms)
+        if duration_ms > 0 and listened_ms < duration_ms:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You must listen to the entire clip before submitting.")
+        transcript = str(result_payload.get("transcript") or result_payload.get("text") or "").strip()
+        if not transcript:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Transcript is required")
+        result_payload.update(
+            {
+                "transcript": transcript,
+                "total_audio_played_ms": payload.total_audio_played_ms,
+                "unique_audio_coverage_ms": payload.unique_audio_coverage_ms,
+            }
+        )
+    elif project.workflow == ProjectWorkflow.VOICE_RECORDING:
+        recording_key = str(result_payload.get("recording_key") or "").strip()
+        mime_type = str(result_payload.get("mime_type") or "").strip()
+        if not recording_key:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Recording key is required")
+        if mime_type not in {"audio/webm", "audio/wav", "audio/ogg", "audio/mpeg", "audio/mp4"}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported recording MIME type")
+
     submission = Submission(
         task_id=task.id or 0,
         annotator_id=current_user.id or 0,
         result_payload={
-            **payload.result_payload,
+            **result_payload,
             "_client_metadata": {"tab_switches": payload.tab_switches},
         },
         keystroke_count=payload.keystroke_count,
@@ -167,7 +213,7 @@ def submit_task(
 
     return SubmissionRead(
         id=submission.id or 0,
-        task=serialize_task(task),
+        task=serialize_task(task, session),
         annotator_id=submission.annotator_id,
         result_payload=submission.result_payload,
         keystroke_count=submission.keystroke_count,

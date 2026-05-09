@@ -2,7 +2,16 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models import NotificationChannel, NotificationDeliveryStatus, ReviewDecision, TaskStatus, TaskType, UserRole
+from app.models import (
+    NotificationChannel,
+    NotificationDeliveryStatus,
+    ProjectStatus,
+    ProjectWorkflow,
+    ReviewDecision,
+    TaskStatus,
+    TaskType,
+    UserRole,
+)
 
 
 class UserCreate(BaseModel):
@@ -39,6 +48,7 @@ class TokenResponse(BaseModel):
 class ProjectCreate(BaseModel):
     name: str
     task_type: TaskType
+    workflow: ProjectWorkflow = ProjectWorkflow.TRANSLATION
     base_reward_annotator: float
     base_reward_reviewer: float
     required_reviews: int = 2
@@ -47,12 +57,22 @@ class ProjectCreate(BaseModel):
 
 class ProjectRead(BaseModel):
     id: int
+    owner_id: int | None = None
+    approved_by_id: int | None = None
     name: str
     task_type: TaskType
+    workflow: ProjectWorkflow
+    status: ProjectStatus
     base_reward_annotator: float
     base_reward_reviewer: float
     required_reviews: int = 2
     min_accuracy_threshold: float = 0.8
+
+
+class ProjectApprovalRequest(BaseModel):
+    project_id: int
+    approved: bool
+    reason: str = ""
 
 
 class ClaimRequest(BaseModel):
@@ -75,6 +95,8 @@ class SubmissionCreate(BaseModel):
     keystroke_count: int = 0
     time_spent_ms: int = 0
     tab_switches: int = 0
+    total_audio_played_ms: int = 0
+    unique_audio_coverage_ms: int = 0
 
 
 class SubmissionRead(BaseModel):

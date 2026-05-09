@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, auth, notifications, reviews, storage, tasks, whatsapp
+from app.api import admin, auth, notifications, projects, reviews, storage, tasks, whatsapp
 from app.api.bootstrap import bootstrap_admin
 from app.core.config import get_settings
 
@@ -12,6 +12,7 @@ from app.core.config import get_settings
 settings = get_settings()
 app = FastAPI(title=settings.app_name)
 app.include_router(auth.router, prefix=settings.api_v1_prefix)
+app.include_router(projects.router, prefix=settings.api_v1_prefix)
 app.include_router(tasks.router, prefix=settings.api_v1_prefix)
 app.include_router(reviews.router, prefix=settings.api_v1_prefix)
 app.include_router(storage.router, prefix=settings.api_v1_prefix)

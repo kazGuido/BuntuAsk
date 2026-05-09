@@ -11,6 +11,20 @@ from app.models import User, UserRole
 
 router = APIRouter(prefix="/storage", tags=["storage"])
 
+ALLOWED_UPLOAD_CONTENT_TYPES = {
+    "application/octet-stream",
+    "audio/webm",
+    "audio/wav",
+    "audio/wave",
+    "audio/x-wav",
+    "audio/ogg",
+    "audio/mpeg",
+    "audio/mp4",
+    "image/jpeg",
+    "image/png",
+    "text/plain",
+}
+
 
 def s3_client():
     settings = get_settings()
@@ -38,6 +52,15 @@ def authorize_storage_key(user: User, key: str) -> str:
     return normalized
 
 
+def authorize_download_key(user: User, key: str) -> str:
+    normalized = key.strip().lstrip("/")
+    if not normalized or ".." in normalized.split("/"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid storage key")
+    if user.role == UserRole.ADMIN or normalized.startswith(f"users/{user.id}/") or normalized.startswith("projects/"):
+        return normalized
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Storage key is not accessible")
+
+
 @router.get("/upload-url", response_model=StorageUrlResponse)
 def upload_url(
     key: str,
@@ -46,7 +69,9 @@ def upload_url(
     current_user: Annotated[User, Depends(get_current_user)] = None,
 ) -> StorageUrlResponse:
     settings = get_settings()
-    authorized_key = authorize_storage_key(current_user, key)
+    authorized_key = authorize_download_key(current_user, key)
+    if content_type not in ALLOWED_UPLOAD_CONTENT_TYPES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported upload content type")
     url = s3_client().generate_presigned_url(
         "put_object",
         Params={"Bucket": settings.s3_bucket_name, "Key": authorized_key, "ContentType": content_type},
