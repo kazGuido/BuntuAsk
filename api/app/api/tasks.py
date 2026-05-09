@@ -4,12 +4,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session, select
 
+from app.api.audit import write_audit
 from app.api.deps import get_current_user
 from app.api.fraud import evaluate_submission
 from app.api.schemas import ClaimRequest, SubmissionCreate, SubmissionRead, TaskRead
 from app.api.utils import client_ip, utc_now
 from app.db.session import get_session
-from app.models import Submission, Task, TaskStatus, User
+from app.models import AuditAction, Submission, Task, TaskStatus, User
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -23,6 +24,7 @@ def serialize_task(task: Task) -> TaskRead:
         status=task.status,
         locked_until=task.locked_until.isoformat() if task.locked_until else None,
         storage_key=task.storage_key,
+        claimed_by_id=task.claimed_by_id,
     )
 
 
@@ -46,8 +48,18 @@ def claim_tasks(
     tasks = session.exec(statement).all()
     for task in tasks:
         task.status = TaskStatus.CLAIMED
+        task.claimed_by_id = current_user.id
         task.locked_until = now + timedelta(minutes=30)
         session.add(task)
+        write_audit(
+            session,
+            action=AuditAction.TASK_CLAIMED,
+            actor=current_user,
+            target_user_id=current_user.id,
+            entity_type="task",
+            entity_id=task.id,
+            description=f"Task {task.id} claimed by {current_user.username}.",
+        )
     session.commit()
     return [serialize_task(task) for task in tasks]
 
@@ -62,8 +74,18 @@ def submit_task(
     task = session.get(Task, payload.task_id)
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-    if task.status not in {TaskStatus.CLAIMED, TaskStatus.AVAILABLE}:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Task is not claimable")
+    now = utc_now()
+    if task.status != TaskStatus.CLAIMED:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Task must be claimed before submission")
+    if task.claimed_by_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Task is claimed by another user")
+    if task.locked_until is not None and task.locked_until < now:
+        task.status = TaskStatus.AVAILABLE
+        task.claimed_by_id = None
+        task.locked_until = None
+        session.add(task)
+        session.commit()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Task claim expired")
 
     submission = Submission(
         task_id=task.id or 0,
@@ -80,9 +102,21 @@ def submit_task(
     session.flush()
 
     alerts = evaluate_submission(session, submission, current_user)
-    task.status = TaskStatus.REJECTED if alerts else TaskStatus.PENDING_REVIEW
+    task.status = TaskStatus.PENDING_REVIEW
+    task.locked_until = None
     session.add(task)
     session.add(current_user)
+    write_audit(
+        session,
+        action=AuditAction.TASK_SUBMITTED,
+        actor=current_user,
+        target_user_id=current_user.id,
+        entity_type="submission",
+        entity_id=submission.id,
+        description=f"Submission {submission.id} created for task {task.id}.",
+        metadata={"fraud_alerts": [alert.alert_type.value for alert in alerts]},
+        ip_address=submission.ip_address,
+    )
     session.commit()
     session.refresh(submission)
     session.refresh(task)

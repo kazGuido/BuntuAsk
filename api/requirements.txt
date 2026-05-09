@@ -9,6 +9,7 @@ psycopg[binary]
 pydantic-settings
 python-jose[cryptography]
 python-multipart
+pytest
 redis
 sqlmodel
 uvicorn[standard]

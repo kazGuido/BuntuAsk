@@ -1,6 +1,10 @@
 from app.models.domain import (
+    AuditAction,
+    AuditLog,
     FraudAlert,
     FraudAlertType,
+    ImportJob,
+    ImportJobStatus,
     Project,
     ProjectPolicy,
     Review,
@@ -19,6 +23,10 @@ from app.models.domain import (
 __all__ = [
     "FraudAlert",
     "FraudAlertType",
+    "AuditAction",
+    "AuditLog",
+    "ImportJob",
+    "ImportJobStatus",
     "Project",
     "ProjectPolicy",
     "Review",

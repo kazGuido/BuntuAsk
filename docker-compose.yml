@@ -86,6 +86,7 @@ services:
       context: ./api
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-buntu}:${POSTGRES_PASSWORD:-buntu_dev_password}@db:5432/${POSTGRES_DB:-buntuask}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in your environment}
       REDIS_URL: redis://cache:6379/0
       S3_ENDPOINT_URL: http://storage:9000
       S3_PUBLIC_ENDPOINT_URL: http://localhost:9000
@@ -94,6 +95,10 @@ services:
       S3_BUCKET_NAME: buntu-media
       FRONTEND_DIST_DIR: /app/frontend_dist
       WHATSAPP_SIDECAR_URL: http://whatsapp_sidecar:3000
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?Set BOOTSTRAP_ADMIN_PASSWORD in your environment}
+      BOOTSTRAP_ADMIN_WHATSAPP: ${BOOTSTRAP_ADMIN_WHATSAPP:-+10000000000}
     depends_on:
       db:
         condition: service_healthy
@@ -103,6 +108,9 @@ services:
         condition: service_completed_successfully
     ports:
       - "8000:8000"
+    command: >
+      /bin/sh -c "alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000"
     volumes:
       - ./frontend/dist:/app/frontend_dist:ro
     networks:

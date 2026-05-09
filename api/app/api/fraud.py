@@ -58,7 +58,6 @@ def evaluate_review(session: Session, submission: Submission, review: Review) ->
                 f"Reviewer IP matched submission IP for submission {submission.id}.",
             )
         )
-        raise ValueError("Review rejected due to IP collision")
 
     recent_reviews = session.exec(
         select(Review).where(Review.reviewer_id == reviewer_id).order_by(Review.id.desc()).limit(6)

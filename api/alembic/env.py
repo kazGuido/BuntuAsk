@@ -6,7 +6,9 @@ from sqlmodel import SQLModel
 
 from app.core.config import get_settings
 from app.models import (  # noqa: F401 - imported so SQLModel metadata is populated
+    AuditLog,
     FraudAlert,
+    ImportJob,
     Project,
     ProjectPolicy,
     Review,

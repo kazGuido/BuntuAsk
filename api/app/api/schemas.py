@@ -1,16 +1,17 @@
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models import ReviewDecision, TaskStatus, TaskType, UserRole
 
 
 class UserCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     username: str
     email: str
     whatsapp_number: str
     password: str = Field(min_length=8)
-    role: UserRole = UserRole.ANNOTATOR
 
 
 class UserLogin(BaseModel):
@@ -65,6 +66,7 @@ class TaskRead(BaseModel):
     status: TaskStatus
     locked_until: str | None = None
     storage_key: str | None = None
+    claimed_by_id: int | None = None
 
 
 class SubmissionCreate(BaseModel):
@@ -111,8 +113,14 @@ class HfImportRequest(BaseModel):
 
 class HfImportResponse(BaseModel):
     status: str
+    job_id: int
     project_id: int
     row_limit: int
+
+
+class ImportReviewResolveRequest(BaseModel):
+    task_id: int
+    approved: bool
 
 
 class WithdrawalApproveRequest(BaseModel):

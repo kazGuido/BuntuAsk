@@ -21,29 +21,45 @@ def distribute_approval_rewards(session: Session, task: Task, submission: Submis
     if project is None or annotator is None:
         return
 
-    annotator.wallet_balance += project.base_reward_annotator
-    session.add(
-        Transaction(
-            user_id=annotator.id or 0,
-            amount=project.base_reward_annotator,
-            type=TransactionType.EARNING,
-            status=TransactionStatus.COMPLETED,
+    annotator_key = f"earning:submission:{submission.id}:annotator:{annotator.id}"
+    existing_annotator_tx = session.exec(
+        select(Transaction).where(Transaction.idempotency_key == annotator_key)
+    ).first()
+    if existing_annotator_tx is None:
+        annotator.wallet_balance += project.base_reward_annotator
+        session.add(
+            Transaction(
+                user_id=annotator.id or 0,
+                amount=project.base_reward_annotator,
+                type=TransactionType.EARNING,
+                status=TransactionStatus.COMPLETED,
+                reference_type="submission",
+                reference_id=submission.id,
+                idempotency_key=annotator_key,
+            )
         )
-    )
 
     for review in reviews:
         reviewer = session.get(User, review.reviewer_id)
         if reviewer is None:
             continue
-        reviewer.wallet_balance += project.base_reward_reviewer
-        session.add(
-            Transaction(
-                user_id=reviewer.id or 0,
-                amount=project.base_reward_reviewer,
-                type=TransactionType.EARNING,
-                status=TransactionStatus.COMPLETED,
+        reviewer_key = f"earning:review:{review.id}:reviewer:{reviewer.id}"
+        existing_reviewer_tx = session.exec(
+            select(Transaction).where(Transaction.idempotency_key == reviewer_key)
+        ).first()
+        if existing_reviewer_tx is None:
+            reviewer.wallet_balance += project.base_reward_reviewer
+            session.add(
+                Transaction(
+                    user_id=reviewer.id or 0,
+                    amount=project.base_reward_reviewer,
+                    type=TransactionType.EARNING,
+                    status=TransactionStatus.COMPLETED,
+                    reference_type="review",
+                    reference_id=review.id,
+                    idempotency_key=reviewer_key,
+                )
             )
-        )
 
 
 def evaluate_consensus(session: Session, submission: Submission) -> TaskStatus:
@@ -54,6 +70,9 @@ def evaluate_consensus(session: Session, submission: Submission) -> TaskStatus:
     policy = session.exec(select(ProjectPolicy).where(ProjectPolicy.project_id == task.project_id)).first()
     required_reviews = policy.required_reviews if policy else 2
     reviews = session.exec(select(Review).where(Review.submission_id == submission.id).order_by(Review.id)).all()
+
+    if task.status == TaskStatus.APPROVED:
+        return task.status
 
     approvals = [review for review in reviews if review.decision == ReviewDecision.APPROVE]
     rejections = [review for review in reviews if review.decision == ReviewDecision.REJECT]

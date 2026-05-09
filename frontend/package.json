@@ -9,12 +9,15 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
     "@tailwindcss/vite": "latest",
     "@vitejs/plugin-react": "latest",
+    "clsx": "^2.1.1",
     "framer-motion": "latest",
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "tailwind-merge": "^3.5.0",
     "tailwindcss": "latest",
     "vite": "latest"
   },

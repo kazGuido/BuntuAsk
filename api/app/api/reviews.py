@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session, select
 
+from app.api.audit import write_audit
 from app.api.deps import require_reviewer
 from app.api.fraud import evaluate_review
 from app.api.policy import evaluate_consensus
@@ -10,7 +11,7 @@ from app.api.schemas import ReviewCreate, SubmissionRead
 from app.api.tasks import serialize_task
 from app.api.utils import client_ip
 from app.db.session import get_session
-from app.models import Review, Submission, Task, TaskStatus, User
+from app.models import AuditAction, Review, Submission, Task, TaskStatus, User
 
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
@@ -78,5 +79,16 @@ def create_review(
     session.add(review)
     session.flush()
     new_status = evaluate_consensus(session, submission)
+    write_audit(
+        session,
+        action=AuditAction.REVIEW_CREATED,
+        actor=current_user,
+        target_user_id=submission.annotator_id,
+        entity_type="review",
+        entity_id=review.id,
+        description=f"Review {review.id} {payload.decision.value} for submission {submission.id}.",
+        metadata={"submission_id": submission.id, "task_id": submission.task_id, "new_status": new_status.value},
+        ip_address=review.ip_address,
+    )
     session.commit()
     return {"status": new_status.value}

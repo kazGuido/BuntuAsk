@@ -1,14 +1,16 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import or_
 from sqlmodel import Session, select
 
+from app.api.audit import write_audit
 from app.api.deps import get_current_user
 from app.api.schemas import TokenResponse, UserCreate, UserLogin, UserRead
 from app.api.security import create_access_token, hash_password, verify_password
+from app.api.utils import client_ip
 from app.db.session import get_session
-from app.models import User
+from app.models import AuditAction, User, UserRole
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -28,7 +30,11 @@ def serialize_user(user: User) -> UserRead:
 
 
 @router.post("/register", response_model=TokenResponse)
-def register(payload: UserCreate, session: Annotated[Session, Depends(get_session)]) -> TokenResponse:
+def register(
+    payload: UserCreate,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+) -> TokenResponse:
     existing = session.exec(
         select(User).where(or_(User.username == payload.username, User.email == payload.email))
     ).first()
@@ -40,16 +46,31 @@ def register(payload: UserCreate, session: Annotated[Session, Depends(get_sessio
         email=payload.email,
         whatsapp_number=payload.whatsapp_number,
         password_hash=hash_password(payload.password),
-        role=payload.role,
+        role=UserRole.ANNOTATOR,
     )
     session.add(user)
+    session.flush()
+    write_audit(
+        session,
+        action=AuditAction.USER_REGISTERED,
+        actor=user,
+        target_user_id=user.id,
+        entity_type="user",
+        entity_id=user.id,
+        description=f"User {user.username} registered as ANNOTATOR.",
+        ip_address=client_ip(request),
+    )
     session.commit()
     session.refresh(user)
     return TokenResponse(access_token=create_access_token(str(user.id)), user=serialize_user(user))
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: UserLogin, session: Annotated[Session, Depends(get_session)]) -> TokenResponse:
+def login(
+    payload: UserLogin,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+) -> TokenResponse:
     user = session.exec(
         select(User).where(or_(User.username == payload.username_or_email, User.email == payload.username_or_email))
     ).first()
@@ -57,6 +78,17 @@ def login(payload: UserLogin, session: Annotated[Session, Depends(get_session)])
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is inactive")
+    write_audit(
+        session,
+        action=AuditAction.USER_LOGIN,
+        actor=user,
+        target_user_id=user.id,
+        entity_type="user",
+        entity_id=user.id,
+        description=f"User {user.username} logged in.",
+        ip_address=client_ip(request),
+    )
+    session.commit()
     return TokenResponse(access_token=create_access_token(str(user.id)), user=serialize_user(user))
 
 

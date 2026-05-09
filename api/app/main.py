@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import admin, auth, reviews, storage, tasks, whatsapp
+from app.api.bootstrap import bootstrap_admin
 from app.core.config import get_settings
 
 
@@ -16,6 +17,11 @@ app.include_router(reviews.router, prefix=settings.api_v1_prefix)
 app.include_router(storage.router, prefix=settings.api_v1_prefix)
 app.include_router(admin.router, prefix=settings.api_v1_prefix)
 app.include_router(whatsapp.router, prefix=settings.api_v1_prefix)
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    bootstrap_admin(settings)
 
 
 @app.get(f"{settings.api_v1_prefix}/health", tags=["system"])

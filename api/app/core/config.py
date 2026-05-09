@@ -7,9 +7,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "BuntuAsk"
     api_v1_prefix: str = "/api/v1"
-    jwt_secret_key: str = "change-me-in-production"
+    jwt_secret_key: str | None = None
     jwt_algorithm: str = "HS256"
     jwt_access_token_minutes: int = 60 * 24
+    bootstrap_admin_username: str | None = None
+    bootstrap_admin_email: str | None = None
+    bootstrap_admin_password: str | None = None
+    bootstrap_admin_whatsapp: str = "+10000000000"
 
     database_url: str = "postgresql+psycopg://buntu:buntu_dev_password@db:5432/buntuask"
     redis_url: str = "redis://cache:6379/0"
