@@ -7,9 +7,14 @@
     "start": "node src/index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "latest",
+    "@hapi/boom": "latest",
+    "@whiskeysockets/baileys": "^7.0.0-rc10",
     "express": "latest",
     "ioredis": "latest",
+    "pino": "latest",
     "qrcode": "latest"
+  },
+  "overrides": {
+    "protobufjs": "^7.5.5"
   }
 }

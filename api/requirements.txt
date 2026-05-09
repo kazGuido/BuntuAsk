@@ -1,6 +1,9 @@
 alembic
 boto3
+datasets
 fastapi
+huggingface_hub
+httpx
 passlib[bcrypt]
 psycopg[binary]
 pydantic-settings

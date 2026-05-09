@@ -4,11 +4,18 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api import admin, auth, reviews, storage, tasks, whatsapp
 from app.core.config import get_settings
 
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name)
+app.include_router(auth.router, prefix=settings.api_v1_prefix)
+app.include_router(tasks.router, prefix=settings.api_v1_prefix)
+app.include_router(reviews.router, prefix=settings.api_v1_prefix)
+app.include_router(storage.router, prefix=settings.api_v1_prefix)
+app.include_router(admin.router, prefix=settings.api_v1_prefix)
+app.include_router(whatsapp.router, prefix=settings.api_v1_prefix)
 
 
 @app.get(f"{settings.api_v1_prefix}/health", tags=["system"])
