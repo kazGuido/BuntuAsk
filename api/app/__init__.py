@@ -1,0 +1,1 @@
+"""BuntuAsk FastAPI application package."""

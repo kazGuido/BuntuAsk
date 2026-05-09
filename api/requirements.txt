@@ -1,0 +1,15 @@
+alembic
+boto3
+datasets
+fastapi
+huggingface_hub
+httpx
+passlib[bcrypt]
+psycopg[binary]
+pydantic-settings
+python-jose[cryptography]
+python-multipart
+pytest
+redis
+sqlmodel
+uvicorn[standard]

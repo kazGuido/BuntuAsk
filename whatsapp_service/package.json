@@ -1,0 +1,20 @@
+{
+  "name": "buntuask-whatsapp-sidecar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@hapi/boom": "latest",
+    "@whiskeysockets/baileys": "^7.0.0-rc10",
+    "express": "latest",
+    "ioredis": "latest",
+    "pino": "latest",
+    "qrcode": "latest"
+  },
+  "overrides": {
+    "protobufjs": "^7.5.5"
+  }
+}
