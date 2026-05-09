@@ -1,0 +1,11 @@
+alembic
+boto3
+fastapi
+passlib[bcrypt]
+psycopg[binary]
+pydantic-settings
+python-jose[cryptography]
+python-multipart
+redis
+sqlmodel
+uvicorn[standard]
