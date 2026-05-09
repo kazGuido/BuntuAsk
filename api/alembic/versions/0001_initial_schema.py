@@ -40,6 +40,15 @@ fraud_alert_type = postgresql.ENUM(
     name="fraud_alert_type",
     create_type=False,
 )
+notification_channel = postgresql.ENUM("IN_APP", "WHATSAPP", "EMAIL", name="notification_channel", create_type=False)
+notification_delivery_status = postgresql.ENUM(
+    "QUEUED",
+    "SENT",
+    "FAILED",
+    "SKIPPED",
+    name="notification_delivery_status",
+    create_type=False,
+)
 import_job_status = postgresql.ENUM("QUEUED", "RUNNING", "COMPLETED", "FAILED", name="import_job_status", create_type=False)
 audit_action = postgresql.ENUM(
     "USER_REGISTERED",
@@ -56,6 +65,8 @@ audit_action = postgresql.ENUM(
     "USER_BANNED",
     "CONFLICT_RESOLVED",
     "WITHDRAWAL_APPROVED",
+    "NOTIFICATION_SENT",
+    "NOTIFICATION_READ",
     name="audit_action",
     create_type=False,
 )
@@ -70,6 +81,8 @@ def upgrade() -> None:
     transaction_type.create(bind, checkfirst=True)
     transaction_status.create(bind, checkfirst=True)
     fraud_alert_type.create(bind, checkfirst=True)
+    notification_channel.create(bind, checkfirst=True)
+    notification_delivery_status.create(bind, checkfirst=True)
     import_job_status.create(bind, checkfirst=True)
     audit_action.create(bind, checkfirst=True)
 
@@ -193,6 +206,42 @@ def upgrade() -> None:
     op.create_index(op.f("ix_fraud_alerts_user_id"), "fraud_alerts", ["user_id"], unique=False)
 
     op.create_table(
+        "notifications",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("title", sa.String(length=180), nullable=False),
+        sa.Column("body", sa.String(), nullable=False),
+        sa.Column("category", sa.String(length=80), nullable=False),
+        sa.Column("metadata", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("is_read", sa.Boolean(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("read_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_notifications_category"), "notifications", ["category"], unique=False)
+    op.create_index(op.f("ix_notifications_is_read"), "notifications", ["is_read"], unique=False)
+    op.create_index(op.f("ix_notifications_user_id"), "notifications", ["user_id"], unique=False)
+
+    op.create_table(
+        "notification_deliveries",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("notification_id", sa.Integer(), nullable=False),
+        sa.Column("channel", notification_channel, nullable=False),
+        sa.Column("status", notification_delivery_status, nullable=False),
+        sa.Column("destination", sa.String(length=255), nullable=True),
+        sa.Column("provider_message_id", sa.String(length=255), nullable=True),
+        sa.Column("error_message", sa.String(), nullable=True),
+        sa.Column("attempted_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(["notification_id"], ["notifications.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_notification_deliveries_channel"), "notification_deliveries", ["channel"], unique=False)
+    op.create_index(op.f("ix_notification_deliveries_notification_id"), "notification_deliveries", ["notification_id"], unique=False)
+    op.create_index(op.f("ix_notification_deliveries_status"), "notification_deliveries", ["status"], unique=False)
+
+    op.create_table(
         "import_jobs",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("project_id", sa.Integer(), nullable=False),
@@ -247,6 +296,14 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_import_jobs_requested_by_id"), table_name="import_jobs")
     op.drop_index(op.f("ix_import_jobs_project_id"), table_name="import_jobs")
     op.drop_table("import_jobs")
+    op.drop_index(op.f("ix_notification_deliveries_status"), table_name="notification_deliveries")
+    op.drop_index(op.f("ix_notification_deliveries_notification_id"), table_name="notification_deliveries")
+    op.drop_index(op.f("ix_notification_deliveries_channel"), table_name="notification_deliveries")
+    op.drop_table("notification_deliveries")
+    op.drop_index(op.f("ix_notifications_user_id"), table_name="notifications")
+    op.drop_index(op.f("ix_notifications_is_read"), table_name="notifications")
+    op.drop_index(op.f("ix_notifications_category"), table_name="notifications")
+    op.drop_table("notifications")
     op.drop_index(op.f("ix_fraud_alerts_user_id"), table_name="fraud_alerts")
     op.drop_table("fraud_alerts")
     op.drop_index(op.f("ix_transactions_user_id"), table_name="transactions")
@@ -275,6 +332,8 @@ def downgrade() -> None:
     bind = op.get_bind()
     audit_action.drop(bind, checkfirst=True)
     import_job_status.drop(bind, checkfirst=True)
+    notification_delivery_status.drop(bind, checkfirst=True)
+    notification_channel.drop(bind, checkfirst=True)
     fraud_alert_type.drop(bind, checkfirst=True)
     transaction_status.drop(bind, checkfirst=True)
     transaction_type.drop(bind, checkfirst=True)

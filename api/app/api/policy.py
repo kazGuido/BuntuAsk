@@ -1,6 +1,8 @@
 from sqlmodel import Session, select
 
+from app.api.notifications import create_notification
 from app.models import (
+    NotificationChannel,
     Project,
     ProjectPolicy,
     Review,
@@ -38,6 +40,15 @@ def distribute_approval_rewards(session: Session, task: Task, submission: Submis
                 idempotency_key=annotator_key,
             )
         )
+        create_notification(
+            session,
+            user=annotator,
+            title="Task approved",
+            body=f"Your submission for task {task.id} was approved. You earned ${project.base_reward_annotator:.3f}.",
+            channels=[NotificationChannel.IN_APP],
+            category="EARNING",
+            metadata={"task_id": task.id, "submission_id": submission.id},
+        )
 
     for review in reviews:
         reviewer = session.get(User, review.reviewer_id)
@@ -59,6 +70,15 @@ def distribute_approval_rewards(session: Session, task: Task, submission: Submis
                     reference_id=review.id,
                     idempotency_key=reviewer_key,
                 )
+            )
+            create_notification(
+                session,
+                user=reviewer,
+                title="Review reward earned",
+                body=f"Your review for submission {submission.id} was accepted. You earned ${project.base_reward_reviewer:.3f}.",
+                channels=[NotificationChannel.IN_APP],
+                category="EARNING",
+                metadata={"task_id": task.id, "submission_id": submission.id, "review_id": review.id},
             )
 
 

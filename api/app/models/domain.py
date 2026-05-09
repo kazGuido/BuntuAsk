@@ -49,6 +49,19 @@ class FraudAlertType(str, Enum):
     SPEED_HACK = "SPEED_HACK"
 
 
+class NotificationChannel(str, Enum):
+    IN_APP = "IN_APP"
+    WHATSAPP = "WHATSAPP"
+    EMAIL = "EMAIL"
+
+
+class NotificationDeliveryStatus(str, Enum):
+    QUEUED = "QUEUED"
+    SENT = "SENT"
+    FAILED = "FAILED"
+    SKIPPED = "SKIPPED"
+
+
 class ImportJobStatus(str, Enum):
     QUEUED = "QUEUED"
     RUNNING = "RUNNING"
@@ -71,6 +84,8 @@ class AuditAction(str, Enum):
     USER_BANNED = "USER_BANNED"
     CONFLICT_RESOLVED = "CONFLICT_RESOLVED"
     WITHDRAWAL_APPROVED = "WITHDRAWAL_APPROVED"
+    NOTIFICATION_SENT = "NOTIFICATION_SENT"
+    NOTIFICATION_READ = "NOTIFICATION_READ"
 
 
 class User(SQLModel, table=True):
@@ -91,6 +106,7 @@ class User(SQLModel, table=True):
     transactions: list["Transaction"] = Relationship(back_populates="user")
     fraud_alerts: list["FraudAlert"] = Relationship(back_populates="user")
     claimed_tasks: list["Task"] = Relationship(back_populates="claimed_by")
+    notifications: list["Notification"] = Relationship(back_populates="user")
 
 
 class Project(SQLModel, table=True):
@@ -227,3 +243,39 @@ class AuditLog(SQLModel, table=True):
     )
     ip_address: str | None = Field(default=None, nullable=True, max_length=64)
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+
+
+class Notification(SQLModel, table=True):
+    __tablename__ = "notifications"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    title: str = Field(max_length=180)
+    body: str
+    category: str = Field(default="GENERAL", max_length=80, index=True)
+    metadata_json: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column("metadata", JSONB, nullable=False),
+    )
+    is_read: bool = Field(default=False, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    read_at: datetime | None = Field(default=None, nullable=True)
+
+    user: User = Relationship(back_populates="notifications")
+    deliveries: list["NotificationDelivery"] = Relationship(back_populates="notification")
+
+
+class NotificationDelivery(SQLModel, table=True):
+    __tablename__ = "notification_deliveries"
+
+    id: int | None = Field(default=None, primary_key=True)
+    notification_id: int = Field(foreign_key="notifications.id", index=True)
+    channel: NotificationChannel = Field(index=True)
+    status: NotificationDeliveryStatus = Field(default=NotificationDeliveryStatus.QUEUED, index=True)
+    destination: str | None = Field(default=None, nullable=True, max_length=255)
+    provider_message_id: str | None = Field(default=None, nullable=True, max_length=255)
+    error_message: str | None = Field(default=None, nullable=True)
+    attempted_at: datetime | None = Field(default=None, nullable=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+
+    notification: Notification = Relationship(back_populates="deliveries")

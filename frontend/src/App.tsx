@@ -7,6 +7,7 @@ import { useApi } from "./lib/api";
 import { AdminDashboard } from "./features/admin/AdminDashboard";
 import { AuthPanel } from "./features/auth/AuthPanel";
 import { Dashboard } from "./features/dashboard/Dashboard";
+import { NotificationCenter } from "./features/notifications/NotificationCenter";
 import { ReviewQueue } from "./features/reviews/ReviewQueue";
 import { TaskSession } from "./features/tasks/TaskSession";
 import { User, View } from "./types";
@@ -59,6 +60,7 @@ export default function App() {
           <div className="flex items-center gap-2 text-xs font-black sm:gap-4 sm:text-sm">
             <span className="hidden rounded-full bg-[#58cc02]/10 px-3 py-1 text-[#46a302] sm:inline">Trust {user.trust_score.toFixed(0)}</span>
             <span className="rounded-full bg-[#1cb0f6]/10 px-3 py-1 text-[#1cb0f6]">${user.wallet_balance.toFixed(3)}</span>
+            <NotificationCenter api={api} />
             <button onClick={logout} className="rounded-full p-2 text-gray-400 hover:bg-gray-100" title="Logout">
               <LogOut size={18} />
             </button>

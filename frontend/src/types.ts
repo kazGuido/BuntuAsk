@@ -74,3 +74,23 @@ export type AuditLog = {
   ip_address?: string | null;
   created_at: string;
 };
+
+export type NotificationDelivery = {
+  id: number;
+  channel: "IN_APP" | "WHATSAPP" | "EMAIL";
+  status: "QUEUED" | "SENT" | "FAILED" | "SKIPPED";
+  destination?: string | null;
+  error_message?: string | null;
+};
+
+export type Notification = {
+  id: number;
+  title: string;
+  body: string;
+  category: string;
+  metadata: Record<string, unknown>;
+  is_read: boolean;
+  created_at: string;
+  read_at?: string | null;
+  deliveries: NotificationDelivery[];
+};

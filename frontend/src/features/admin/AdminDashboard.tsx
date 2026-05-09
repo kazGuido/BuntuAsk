@@ -70,6 +70,7 @@ export function AdminDashboard({ api, onDone }: { api: ApiClient; onDone: () => 
       <button onClick={onDone} className="text-sm font-black uppercase text-gray-400">Dashboard</button>
       {message && <p className="rounded-2xl bg-sky-50 p-3 text-sm font-bold text-sky-600">{message}</p>}
       <ProjectPanel projects={projects} createProject={createProject} openImport={setImportProject} />
+      <NotificationSendPanel api={api} setMessage={setMessage} />
       <div className="grid gap-5 lg:grid-cols-2">
         <FraudDesk api={api} alerts={alerts} refresh={refresh} />
         <WhatsAppPanel status={waStatus} qr={qr} />
@@ -116,6 +117,45 @@ function ProjectPanel({ projects, createProject, openImport }: { projects: Proje
           </div>
         ))}
       </div>
+    </Card>
+  );
+}
+
+function NotificationSendPanel({ api, setMessage }: { api: ApiClient; setMessage: (message: string) => void }) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const channels = ["IN_APP", "WHATSAPP", "EMAIL"].filter((channel) => form.get(channel));
+    await api("/notifications/admin/send", {
+      method: "POST",
+      body: JSON.stringify({
+        user_ids: String(form.get("user_ids"))
+          .split(",")
+          .map((value) => Number(value.trim()))
+          .filter(Boolean),
+        title: String(form.get("title")),
+        body: String(form.get("body")),
+        category: String(form.get("category") || "GENERAL"),
+        channels: channels.length ? channels : ["IN_APP"],
+      }),
+    });
+    event.currentTarget.reset();
+    setMessage("Notification queued across selected channels.");
+  }
+
+  return (
+    <Card>
+      <h2 className="mb-4 text-2xl font-black">Multi-channel notifications</h2>
+      <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
+        <Input name="user_ids" placeholder="User IDs, comma separated" required />
+        <Input name="category" defaultValue="GENERAL" placeholder="Category" />
+        <Input name="title" placeholder="Title" required className="sm:col-span-2" />
+        <textarea name="body" placeholder="Message body" required className="min-h-28 rounded-2xl border-2 border-gray-200 px-4 py-3 font-bold outline-none focus:border-[#1cb0f6] sm:col-span-2" />
+        <label className="flex items-center gap-2 rounded-2xl bg-gray-50 p-3 text-sm font-black"><input type="checkbox" name="IN_APP" defaultChecked /> In app</label>
+        <label className="flex items-center gap-2 rounded-2xl bg-gray-50 p-3 text-sm font-black"><input type="checkbox" name="WHATSAPP" /> WhatsApp</label>
+        <label className="flex items-center gap-2 rounded-2xl bg-gray-50 p-3 text-sm font-black"><input type="checkbox" name="EMAIL" /> Email</label>
+        <Button className="border-[#1899d6] bg-[#1cb0f6] text-white sm:col-span-2">Send notification</Button>
+      </form>
     </Card>
   );
 }

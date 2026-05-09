@@ -2,9 +2,10 @@ import pytest
 from pydantic import ValidationError
 
 from app.api.admin import extract_prompt
+from app.api.notifications import build_email_message
 from app.api.storage import authorize_storage_key
-from app.models import Review, Submission, Task, TaskStatus, User, UserRole
-from app.api.schemas import UserCreate
+from app.models import Notification, NotificationChannel, NotificationDelivery, Review, Submission, Task, TaskStatus, User, UserRole
+from app.api.schemas import NotificationSendRequest, UserCreate
 
 
 def test_public_registration_cannot_request_admin_role() -> None:
@@ -56,3 +57,25 @@ def test_schema_contains_ownership_and_uniqueness_guards() -> None:
     assert "claimed_by_id" in Task.model_fields
     assert any(constraint.name == "uq_submissions_task_id" for constraint in Submission.__table__.constraints)
     assert any(constraint.name == "uq_reviews_submission_reviewer" for constraint in Review.__table__.constraints)
+
+
+def test_notification_schema_and_email_message_builder() -> None:
+    payload = NotificationSendRequest(
+        user_ids=[1],
+        title="Task approved",
+        body="You earned a reward.",
+        channels=[NotificationChannel.IN_APP, NotificationChannel.EMAIL],
+    )
+    assert payload.channels == [NotificationChannel.IN_APP, NotificationChannel.EMAIL]
+    assert "metadata_json" in Notification.model_fields
+    assert "channel" in NotificationDelivery.model_fields
+
+    message = build_email_message(
+        to_email="user@example.com",
+        subject=payload.title,
+        body=payload.body,
+        from_email="noreply@example.com",
+    )
+    assert message["To"] == "user@example.com"
+    assert message["Subject"] == "Task approved"
+    assert "You earned a reward." in message.get_content()

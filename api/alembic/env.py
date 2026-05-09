@@ -9,6 +9,8 @@ from app.models import (  # noqa: F401 - imported so SQLModel metadata is popula
     AuditLog,
     FraudAlert,
     ImportJob,
+    Notification,
+    NotificationDelivery,
     Project,
     ProjectPolicy,
     Review,

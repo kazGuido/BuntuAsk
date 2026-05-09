@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     frontend_dist_dir: Path = Path("/app/frontend_dist")
     whatsapp_sidecar_url: str = "http://whatsapp_sidecar:3000"
 
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_use_tls: bool = True
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 

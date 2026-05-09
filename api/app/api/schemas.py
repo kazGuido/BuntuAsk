@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models import ReviewDecision, TaskStatus, TaskType, UserRole
+from app.models import NotificationChannel, NotificationDeliveryStatus, ReviewDecision, TaskStatus, TaskType, UserRole
 
 
 class UserCreate(BaseModel):
@@ -135,3 +135,32 @@ class ConflictResolveRequest(BaseModel):
 class WhatsAppSendRequest(BaseModel):
     phone: str
     message: str
+
+
+class NotificationSendRequest(BaseModel):
+    user_ids: list[int] = Field(min_length=1, max_length=100)
+    title: str = Field(min_length=1, max_length=180)
+    body: str = Field(min_length=1, max_length=5000)
+    channels: list[NotificationChannel] = Field(default_factory=lambda: [NotificationChannel.IN_APP])
+    category: str = Field(default="GENERAL", max_length=80)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class NotificationDeliveryRead(BaseModel):
+    id: int
+    channel: NotificationChannel
+    status: NotificationDeliveryStatus
+    destination: str | None = None
+    error_message: str | None = None
+
+
+class NotificationRead(BaseModel):
+    id: int
+    title: str
+    body: str
+    category: str
+    metadata: dict[str, Any]
+    is_read: bool
+    created_at: str
+    read_at: str | None = None
+    deliveries: list[NotificationDeliveryRead] = Field(default_factory=list)
