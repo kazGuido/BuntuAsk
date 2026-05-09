@@ -6,6 +6,7 @@ import { EmptyState, Loading } from "../../components/Loading";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Textarea } from "../../components/ui/input";
+import { useI18n } from "../../i18n";
 import { ApiClient } from "../../lib/api";
 import { taskPrompt } from "../../lib/utils";
 import { Task } from "../../types";
@@ -14,6 +15,7 @@ import { taskWorkflow } from "./audio";
 import { VoiceRecordingCard } from "./VoiceRecordingCard";
 
 export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => void }) {
+  const { t } = useI18n();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [index, setIndex] = useState(0);
   const [answer, setAnswer] = useState("");
@@ -93,12 +95,12 @@ export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => voi
 
   function blockInput(event: SyntheticEvent) {
     event.preventDefault();
-    setError("Manual typing only: paste, drop, and context menu are disabled.");
+    setError(t("manualTypingOnly"));
   }
 
-  if (loading) return <Loading label="Claiming a fresh task batch..." />;
-  if (error && !current) return <EmptyState title="No tasks available" message={error} onDone={onDone} />;
-  if (!current) return <EmptyState title="All caught up" message="There are no available tasks right now." onDone={onDone} />;
+  if (loading) return <Loading label={t("claimingBatch")} />;
+  if (error && !current) return <EmptyState title={t("noTasksAvailable")} message={error} onDone={onDone} />;
+  if (!current) return <EmptyState title={t("allCaughtUp")} message={t("noTasksNow")} onDone={onDone} />;
   const workflow = taskWorkflow(current);
 
   async function submitAudioPayload(payload: Record<string, unknown>) {
@@ -140,7 +142,7 @@ export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => voi
       </div>
       {tabSwitches > 0 && (
         <div className="mb-3 flex items-center gap-2 rounded-2xl bg-orange-50 px-4 py-3 text-sm font-bold text-orange-600">
-          <AlertTriangle size={18} /> Tab switching detected.
+          <AlertTriangle size={18} /> {t("tabSwitchingDetected")}
         </div>
       )}
       {workflow === "AUDIO_TRANSCRIPTION" && (
@@ -154,7 +156,7 @@ export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => voi
         <motion.div key={current.id} initial={{ x: 80, opacity: 0, rotate: 1 }} animate={{ x: 0, opacity: 1, rotate: 0 }} exit={{ x: -80, opacity: 0, rotate: -1 }}>
           <Card className="space-y-5">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-[#ce82ff]">Translate or label</p>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-[#ce82ff]">{t("translateOrLabel")}</p>
               <h2 className="mt-2 text-xl font-black leading-tight text-[#3c3c3c] sm:text-3xl">{taskPrompt(current)}</h2>
             </div>
             <Textarea
@@ -168,7 +170,7 @@ export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => voi
               onDrop={blockInput}
               onContextMenu={blockInput}
               className="min-h-36 bg-gray-50 p-4 text-base font-semibold sm:min-h-48 sm:text-lg"
-              placeholder="Type your answer manually..."
+              placeholder={t("typeAnswer")}
             />
             {error && <p className="text-sm font-bold text-red-600">{error}</p>}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -177,7 +179,7 @@ export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => voi
                 <span>{tabSwitches} switches</span>
               </div>
               <Button onClick={() => submit()} className="border-[#1899d6] bg-[#1cb0f6] text-white">
-                Submit <Sparkles className="ml-1 inline" size={16} />
+                {t("submit")} <Sparkles className="ml-1 inline" size={16} />
               </Button>
             </div>
           </Card>

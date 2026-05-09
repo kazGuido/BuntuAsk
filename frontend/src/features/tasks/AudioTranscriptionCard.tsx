@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Textarea } from "../../components/ui/input";
+import { useI18n } from "../../i18n";
 import { ApiClient } from "../../lib/api";
 import { Task } from "../../types";
 import { audioDurationMs, resolveAudioUrl } from "./audio";
@@ -19,6 +20,7 @@ type Props = {
 };
 
 export function AudioTranscriptionCard({ api, task, keystrokes, setKeystrokes, submit, error, setError }: Props) {
+  const { t } = useI18n();
   const waveformRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const playedSegmentsRef = useRef<Array<[number, number]>>([]);
@@ -115,7 +117,7 @@ export function AudioTranscriptionCard({ api, task, keystrokes, setKeystrokes, s
 
   async function handleSubmit() {
     if (durationMs > 0 && Math.max(totalPlayedMs, coverageMs) < durationMs) {
-      setError("You must listen to the entire clip.");
+      setError(t("mustListen"));
       return;
     }
     await submit({
@@ -130,15 +132,15 @@ export function AudioTranscriptionCard({ api, task, keystrokes, setKeystrokes, s
   return (
     <Card className="space-y-4">
       <div>
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#1cb0f6]">Transcriber Deck</p>
-        <h2 className="text-xl font-black text-[#3c3c3c] sm:text-3xl">Listen and transcribe the clip</h2>
+        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#1cb0f6]">{t("transcriberDeck")}</p>
+        <h2 className="text-xl font-black text-[#3c3c3c] sm:text-3xl">{t("listenAndTranscribe")}</h2>
       </div>
       <div className="rounded-3xl bg-sky-50 p-3">
         <div ref={waveformRef} className="overflow-hidden rounded-2xl bg-white p-2" />
       </div>
       <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
         <Button type="button" onClick={() => wavesurferRef.current?.playPause()} className="border-[#1899d6] bg-[#1cb0f6] text-white">
-          {isPlaying ? "Pause" : "Play"}
+          {isPlaying ? t("pause") : t("play")}
         </Button>
         <Button type="button" onClick={() => skip(-3)} className="border-gray-300 bg-white text-gray-500">-3s</Button>
         <Button type="button" onClick={() => skip(3)} className="border-gray-300 bg-white text-gray-500">+3s</Button>
@@ -147,11 +149,11 @@ export function AudioTranscriptionCard({ api, task, keystrokes, setKeystrokes, s
           onClick={() => setAutoLoop((value) => !value)}
           className={autoLoop ? "col-span-3 rounded-2xl bg-[#58cc02]/10 px-4 py-3 text-sm font-black uppercase text-[#46a302]" : "col-span-3 rounded-2xl bg-gray-100 px-4 py-3 text-sm font-black uppercase text-gray-500"}
         >
-          Auto-loop {autoLoop ? "on" : "off"}
+          {t("autoLoop")} {autoLoop ? t("on") : t("off")}
         </button>
       </div>
       <p className="text-xs font-bold text-gray-400">
-        Desktop hotkeys: Tab play/pause, Ctrl+J back, Ctrl+K forward. Listened {Math.round(Math.max(totalPlayedMs, coverageMs) / 1000)}s / {Math.round(durationMs / 1000)}s.
+        {t("desktopHotkeys")} {t("listened")} {Math.round(Math.max(totalPlayedMs, coverageMs) / 1000)}s / {Math.round(durationMs / 1000)}s.
       </p>
       <Textarea
         value={transcript}
@@ -160,11 +162,11 @@ export function AudioTranscriptionCard({ api, task, keystrokes, setKeystrokes, s
           if (event.key.length === 1 || event.key === "Backspace") setKeystrokes((value) => value + 1);
         }}
         className="min-h-36 bg-gray-50 p-4 text-base font-semibold sm:min-h-48"
-        placeholder="Type exactly what you hear..."
+        placeholder={t("typeWhatYouHear")}
       />
       {error && <p className="rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-600">{error}</p>}
       <Button disabled={!transcript.trim() || (durationMs > 0 && Math.max(totalPlayedMs, coverageMs) < durationMs)} onClick={handleSubmit} className="sticky bottom-20 w-full border-[#1899d6] bg-[#1cb0f6] text-white sm:static">
-        Submit transcript ({keystrokes} keys)
+        {t("submitTranscript")} ({keystrokes} {t("keys")})
       </Button>
     </Card>
   );

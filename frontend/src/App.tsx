@@ -10,9 +10,11 @@ import { Dashboard } from "./features/dashboard/Dashboard";
 import { NotificationCenter } from "./features/notifications/NotificationCenter";
 import { ReviewQueue } from "./features/reviews/ReviewQueue";
 import { TaskSession } from "./features/tasks/TaskSession";
+import { LanguageToggle, useI18n } from "./i18n";
 import { User, View } from "./types";
 
 export default function App() {
+  const { t } = useI18n();
   const [token, setToken] = useState(() => localStorage.getItem("buntu_token"));
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<View>("dashboard");
@@ -30,7 +32,7 @@ export default function App() {
       .finally(() => setLoading(false));
   }, [token, api]);
 
-  if (loading) return <Loading label="Restoring session..." />;
+  if (loading) return <Loading label={t("restoringSession")} />;
   if (!token || !user) {
     return (
       <AuthPanel
@@ -58,10 +60,11 @@ export default function App() {
             <span className="hidden text-lg font-black sm:inline">BuntuAsk</span>
           </button>
           <div className="flex items-center gap-2 text-xs font-black sm:gap-4 sm:text-sm">
-            <span className="hidden rounded-full bg-[#58cc02]/10 px-3 py-1 text-[#46a302] sm:inline">Trust {user.trust_score.toFixed(0)}</span>
+            <span className="hidden rounded-full bg-[#58cc02]/10 px-3 py-1 text-[#46a302] sm:inline">{t("trust")} {user.trust_score.toFixed(0)}</span>
             <span className="rounded-full bg-[#1cb0f6]/10 px-3 py-1 text-[#1cb0f6]">${user.wallet_balance.toFixed(3)}</span>
+            <LanguageToggle />
             <NotificationCenter api={api} />
-            <button onClick={logout} className="rounded-full p-2 text-gray-400 hover:bg-gray-100" title="Logout">
+            <button onClick={logout} className="rounded-full p-2 text-gray-400 hover:bg-gray-100" title={t("logout")}>
               <LogOut size={18} />
             </button>
           </div>
@@ -78,7 +81,7 @@ export default function App() {
         </AnimatePresence>
       </main>
       <footer className="fixed bottom-3 left-1/2 z-30 flex -translate-x-1/2 gap-2 rounded-full border border-black/10 bg-white/95 p-2 shadow-xl sm:hidden">
-        <button onClick={() => setView("dashboard")} className="rounded-full p-3 text-[#5a5a40]"><Sparkles size={20} /></button>
+        <button onClick={() => setView("dashboard")} className="rounded-full p-3 text-[#5a5a40]" title={t("dashboard")}><Sparkles size={20} /></button>
         {user.role !== "REVIEWER" && <button onClick={() => setView("annotate")} className="rounded-full p-3 text-[#58cc02]"><Clock size={20} /></button>}
         {user.role !== "ANNOTATOR" && <button onClick={() => setView("review")} className="rounded-full p-3 text-[#ce82ff]"><Eye size={20} /></button>}
         {user.role === "ADMIN" && <button onClick={() => setView("admin")} className="rounded-full p-3 text-[#ff9600]"><Lock size={20} /></button>}

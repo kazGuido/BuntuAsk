@@ -5,11 +5,13 @@ import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Dialog } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
+import { useI18n } from "../../i18n";
 import { ApiClient } from "../../lib/api";
 import { taskPrompt } from "../../lib/utils";
 import { AuditLog, FraudAlert, ImportJob, Project, Task } from "../../types";
 
 export function AdminDashboard({ api, onDone }: { api: ApiClient; onDone: () => void }) {
+  const { t } = useI18n();
   const [projects, setProjects] = useState<Project[]>([]);
   const [pendingProjects, setPendingProjects] = useState<Project[]>([]);
   const [alerts, setAlerts] = useState<FraudAlert[]>([]);
@@ -75,7 +77,7 @@ export function AdminDashboard({ api, onDone }: { api: ApiClient; onDone: () => 
 
   return (
     <div className="space-y-5">
-      <button onClick={onDone} className="text-sm font-black uppercase text-gray-400">Dashboard</button>
+      <button onClick={onDone} className="text-sm font-black uppercase text-gray-400">{t("dashboard")}</button>
       {message && <p className="rounded-2xl bg-sky-50 p-3 text-sm font-bold text-sky-600">{message}</p>}
       <ProjectPanel projects={projects} createProject={createProject} openImport={setImportProject} />
       <PendingProjectsPanel api={api} projects={pendingProjects} refresh={refresh} />
@@ -99,31 +101,32 @@ export function AdminDashboard({ api, onDone }: { api: ApiClient; onDone: () => 
 }
 
 function ProjectPanel({ projects, createProject, openImport }: { projects: Project[]; createProject: (event: FormEvent<HTMLFormElement>) => void; openImport: (project: Project) => void }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <h2 className="mb-4 flex items-center gap-2 text-2xl font-black"><Database /> Project config</h2>
+      <h2 className="mb-4 flex items-center gap-2 text-2xl font-black"><Database /> {t("projectConfig")}</h2>
       <form onSubmit={createProject} className="grid gap-3 sm:grid-cols-2">
-        <Input name="name" required placeholder="Project name" />
-        <Input name="language" required placeholder="Language, e.g. Kirundi" />
-        <Input name="description" required placeholder="Project description" className="sm:col-span-2" />
+        <Input name="name" required placeholder={t("projectName")} />
+        <Input name="language" required placeholder={t("languagePlaceholder")} />
+        <Input name="description" required placeholder={t("projectDescription")} className="sm:col-span-2" />
         <select name="workflow" className="rounded-2xl border-2 border-gray-200 px-4 py-3 font-bold">
-          <option value="TRANSLATION">Translation</option>
-          <option value="AUDIO_TRANSCRIPTION">Audio-to-text transcription</option>
-          <option value="VOICE_RECORDING">Voice recording</option>
-          <option value="IMAGE_LABELING">Image labeling</option>
+          <option value="TRANSLATION">{t("translation")}</option>
+          <option value="AUDIO_TRANSCRIPTION">{t("audioTranscription")}</option>
+          <option value="VOICE_RECORDING">{t("voiceRecording")}</option>
+          <option value="IMAGE_LABELING">{t("imageLabeling")}</option>
         </select>
         <select name="task_type" className="rounded-2xl border-2 border-gray-200 px-4 py-3 font-bold">
-          <option value="TEXT">Text</option>
-          <option value="AUDIO">Audio</option>
-          <option value="IMAGE">Image</option>
+          <option value="TEXT">{t("text")}</option>
+          <option value="AUDIO">{t("audio")}</option>
+          <option value="IMAGE">{t("image")}</option>
         </select>
-        <Input name="base_reward_annotator" required type="number" step="0.001" placeholder="Annotator reward" />
-        <Input name="base_reward_reviewer" required type="number" step="0.001" placeholder="Reviewer reward" />
+        <Input name="base_reward_annotator" required type="number" step="0.001" placeholder={t("annotatorReward")} />
+        <Input name="base_reward_reviewer" required type="number" step="0.001" placeholder={t("reviewerReward")} />
         <Input name="required_reviews" defaultValue={2} type="number" />
         <Input name="min_accuracy_threshold" defaultValue={0.8} type="number" step="0.01" />
-        <textarea name="guidelines" required placeholder="Worker/reviewer guidelines" className="min-h-24 rounded-2xl border-2 border-gray-200 px-4 py-3 font-bold outline-none focus:border-[#1cb0f6] sm:col-span-2" />
+        <textarea name="guidelines" required placeholder={t("guidelines")} className="min-h-24 rounded-2xl border-2 border-gray-200 px-4 py-3 font-bold outline-none focus:border-[#1cb0f6] sm:col-span-2" />
         <textarea name="sample_payload" defaultValue={'{"prompt":"Sample task payload"}'} className="min-h-24 rounded-2xl border-2 border-gray-200 px-4 py-3 font-mono text-sm outline-none focus:border-[#1cb0f6] sm:col-span-2" />
-        <Button className="border-[#1899d6] bg-[#1cb0f6] text-white sm:col-span-2">Create project</Button>
+        <Button className="border-[#1899d6] bg-[#1cb0f6] text-white sm:col-span-2">{t("createProject")}</Button>
       </form>
       <div className="mt-5 grid gap-3">
         {projects.map((project) => (
@@ -132,7 +135,7 @@ function ProjectPanel({ projects, createProject, openImport }: { projects: Proje
               <p className="font-black text-[#3c3c3c]">{project.name}</p>
               <p className="text-xs font-bold text-gray-400">{project.workflow} - {project.status} - {project.required_reviews} reviews</p>
             </div>
-            <Button onClick={() => openImport(project)} className="border-[#46a302] bg-[#58cc02] text-white">Import from HuggingFace</Button>
+            <Button onClick={() => openImport(project)} className="border-[#46a302] bg-[#58cc02] text-white">{t("importFromHuggingFace")}</Button>
           </div>
         ))}
       </div>
@@ -141,6 +144,7 @@ function ProjectPanel({ projects, createProject, openImport }: { projects: Proje
 }
 
 function PendingProjectsPanel({ api, projects, refresh }: { api: ApiClient; projects: Project[]; refresh: () => void }) {
+  const { t } = useI18n();
   async function decide(project: Project, approved: boolean) {
     await api("/projects/approve", {
       method: "POST",
@@ -151,20 +155,20 @@ function PendingProjectsPanel({ api, projects, refresh }: { api: ApiClient; proj
 
   return (
     <Card>
-      <h2 className="mb-3 text-2xl font-black">Project approvals</h2>
+      <h2 className="mb-3 text-2xl font-black">{t("projectApprovals")}</h2>
       {projects.map((project) => (
         <div key={project.id} className="mb-3 rounded-2xl bg-yellow-50 p-4">
           <p className="font-black text-[#3c3c3c]">{project.name}</p>
           <p className="text-sm font-bold text-gray-500">{project.workflow} / {project.task_type} / {project.language || "no language"} / owner #{project.owner_id}</p>
-          <p className="mt-2 text-sm font-semibold text-gray-600">{project.description || "No description provided."}</p>
+          <p className="mt-2 text-sm font-semibold text-gray-600">{project.description || t("noDescription")}</p>
           <pre className="mt-2 overflow-auto rounded-xl bg-white p-2 text-xs text-gray-500">{JSON.stringify(project.sample_payload || {}, null, 2)}</pre>
           <div className="mt-3 flex gap-3">
-            <Button onClick={() => decide(project, true)} className="border-[#46a302] bg-[#58cc02] text-white">Approve</Button>
-            <Button onClick={() => decide(project, false)} className="border-[#cc3f3f] bg-[#ff4b4b] text-white">Reject</Button>
+            <Button onClick={() => decide(project, true)} className="border-[#46a302] bg-[#58cc02] text-white">{t("approve")}</Button>
+            <Button onClick={() => decide(project, false)} className="border-[#cc3f3f] bg-[#ff4b4b] text-white">{t("reject")}</Button>
           </div>
         </div>
       ))}
-      {!projects.length && <p className="text-sm font-bold text-gray-400">No pending project approvals.</p>}
+      {!projects.length && <p className="text-sm font-bold text-gray-400">{t("noPendingProjectApprovals")}</p>}
     </Card>
   );
 }
@@ -178,6 +182,7 @@ function parseSamplePayload(value: string) {
 }
 
 function NotificationSendPanel({ api, setMessage }: { api: ApiClient; setMessage: (message: string) => void }) {
+  const { t } = useI18n();
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -201,7 +206,7 @@ function NotificationSendPanel({ api, setMessage }: { api: ApiClient; setMessage
 
   return (
     <Card>
-      <h2 className="mb-4 text-2xl font-black">Multi-channel notifications</h2>
+      <h2 className="mb-4 text-2xl font-black">{t("multiChannelNotifications")}</h2>
       <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
         <Input name="user_ids" placeholder="User IDs, comma separated" required />
         <Input name="category" defaultValue="GENERAL" placeholder="Category" />
@@ -210,16 +215,17 @@ function NotificationSendPanel({ api, setMessage }: { api: ApiClient; setMessage
         <label className="flex items-center gap-2 rounded-2xl bg-gray-50 p-3 text-sm font-black"><input type="checkbox" name="IN_APP" defaultChecked /> In app</label>
         <label className="flex items-center gap-2 rounded-2xl bg-gray-50 p-3 text-sm font-black"><input type="checkbox" name="WHATSAPP" /> WhatsApp</label>
         <label className="flex items-center gap-2 rounded-2xl bg-gray-50 p-3 text-sm font-black"><input type="checkbox" name="EMAIL" /> Email</label>
-        <Button className="border-[#1899d6] bg-[#1cb0f6] text-white sm:col-span-2">Send notification</Button>
+        <Button className="border-[#1899d6] bg-[#1cb0f6] text-white sm:col-span-2">{t("sendNotification")}</Button>
       </form>
     </Card>
   );
 }
 
 function FraudDesk({ api, alerts, refresh }: { api: ApiClient; alerts: FraudAlert[]; refresh: () => void }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <h2 className="mb-3 flex items-center gap-2 text-xl font-black"><ShieldAlert /> Fraud desk</h2>
+      <h2 className="mb-3 flex items-center gap-2 text-xl font-black"><ShieldAlert /> {t("fraudDesk")}</h2>
       <div className="space-y-3">
         {alerts.slice(0, 8).map((alert) => (
           <div key={alert.id} className="rounded-2xl bg-red-50 p-3 text-sm">
@@ -228,59 +234,63 @@ function FraudDesk({ api, alerts, refresh }: { api: ApiClient; alerts: FraudAler
             {!alert.resolved && <button className="mt-2 font-black text-red-700" onClick={() => api(`/admin/fraud-alerts/${alert.id}/resolve`, { method: "POST" }).then(refresh)}>Resolve</button>}
           </div>
         ))}
-        {!alerts.length && <p className="text-sm font-bold text-gray-400">No alerts yet.</p>}
+        {!alerts.length && <p className="text-sm font-bold text-gray-400">{t("noAlerts")}</p>}
       </div>
     </Card>
   );
 }
 
 function WhatsAppPanel({ status, qr }: { status: string; qr: string | null }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <h2 className="mb-3 flex items-center gap-2 text-xl font-black"><QrCode /> WhatsApp panel</h2>
-      <p className="mb-3 text-sm font-bold text-gray-500">Sidecar status: {status}</p>
-      {qr ? <img src={qr} alt="WhatsApp QR" className="mx-auto w-56 rounded-2xl bg-white" /> : <p className="rounded-2xl bg-gray-50 p-4 text-sm font-bold text-gray-400">QR not ready.</p>}
+      <h2 className="mb-3 flex items-center gap-2 text-xl font-black"><QrCode /> {t("whatsappPanel")}</h2>
+      <p className="mb-3 text-sm font-bold text-gray-500">{t("sidecarStatus")}: {status}</p>
+      {qr ? <img src={qr} alt="WhatsApp QR" className="mx-auto w-56 rounded-2xl bg-white" /> : <p className="rounded-2xl bg-gray-50 p-4 text-sm font-bold text-gray-400">{t("qrNotReady")}</p>}
     </Card>
   );
 }
 
 function TaskDecisionPanel({ title, tasks, actionPath, api, refresh }: { title: string; tasks: Task[]; actionPath: string; api: ApiClient; refresh: () => void }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <h2 className="mb-3 flex items-center gap-2 text-xl font-black"><Eye /> {title}</h2>
+      <h2 className="mb-3 flex items-center gap-2 text-xl font-black"><Eye /> {title === "Import review" ? t("importReview") : title === "Conflict queue" ? t("conflictQueue") : title}</h2>
       {tasks.map((task) => (
         <div key={task.id} className="mb-3 rounded-2xl bg-gray-50 p-3">
           <p className="font-bold">{taskPrompt(task)}</p>
           <div className="mt-2 flex gap-2">
-            <button className="font-black text-green-600" onClick={() => api(actionPath, { method: "POST", body: JSON.stringify({ task_id: task.id, approved: true }) }).then(refresh)}>Approve</button>
-            <button className="font-black text-red-600" onClick={() => api(actionPath, { method: "POST", body: JSON.stringify({ task_id: task.id, approved: false }) }).then(refresh)}>Reject</button>
+            <button className="font-black text-green-600" onClick={() => api(actionPath, { method: "POST", body: JSON.stringify({ task_id: task.id, approved: true }) }).then(refresh)}>{t("approve")}</button>
+            <button className="font-black text-red-600" onClick={() => api(actionPath, { method: "POST", body: JSON.stringify({ task_id: task.id, approved: false }) }).then(refresh)}>{t("reject")}</button>
           </div>
         </div>
       ))}
-      {!tasks.length && <p className="text-sm font-bold text-gray-400">Nothing waiting.</p>}
+      {!tasks.length && <p className="text-sm font-bold text-gray-400">{t("nothingWaiting")}</p>}
     </Card>
   );
 }
 
 function PayoutPanel({ api, withdrawals, refresh }: { api: ApiClient; withdrawals: Array<Record<string, unknown>>; refresh: () => void }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <h2 className="mb-3 flex items-center gap-2 text-xl font-black"><Wallet /> Payouts</h2>
+      <h2 className="mb-3 flex items-center gap-2 text-xl font-black"><Wallet /> {t("payouts")}</h2>
       {withdrawals.map((withdrawal) => (
         <div key={String(withdrawal.id)} className="mb-3 flex items-center justify-between rounded-2xl bg-gray-50 p-3">
           <span className="font-bold">#{String(withdrawal.id)} ${String(withdrawal.amount)}</span>
-          <button className="font-black text-[#1cb0f6]" onClick={() => api("/admin/withdrawals/approve", { method: "POST", body: JSON.stringify({ transaction_id: withdrawal.id }) }).then(refresh)}>Approve</button>
+              <button className="font-black text-[#1cb0f6]" onClick={() => api("/admin/withdrawals/approve", { method: "POST", body: JSON.stringify({ transaction_id: withdrawal.id }) }).then(refresh)}>{t("approve")}</button>
         </div>
       ))}
-      {!withdrawals.length && <p className="text-sm font-bold text-gray-400">No pending withdrawals.</p>}
+      {!withdrawals.length && <p className="text-sm font-bold text-gray-400">{t("noPendingWithdrawals")}</p>}
     </Card>
   );
 }
 
 function ImportJobs({ jobs }: { jobs: ImportJob[] }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <h2 className="mb-3 text-xl font-black">Import jobs</h2>
+      <h2 className="mb-3 text-xl font-black">{t("importJobs")}</h2>
       {jobs.slice(0, 8).map((job) => (
         <div key={job.id} className="mb-3 rounded-2xl bg-gray-50 p-3 text-sm">
           <p className="font-black">{job.hf_repo} - {job.status}</p>
@@ -288,15 +298,16 @@ function ImportJobs({ jobs }: { jobs: ImportJob[] }) {
           {job.error_message && <p className="font-bold text-red-500">{job.error_message}</p>}
         </div>
       ))}
-      {!jobs.length && <p className="text-sm font-bold text-gray-400">No import jobs.</p>}
+      {!jobs.length && <p className="text-sm font-bold text-gray-400">{t("noImportJobs")}</p>}
     </Card>
   );
 }
 
 function AuditPanel({ logs }: { logs: AuditLog[] }) {
+  const { t } = useI18n();
   return (
     <Card>
-      <h2 className="mb-3 text-xl font-black">Audit trail</h2>
+      <h2 className="mb-3 text-xl font-black">{t("auditTrail")}</h2>
       <div className="max-h-80 space-y-2 overflow-auto pr-1">
         {logs.slice(0, 25).map((log) => (
           <div key={log.id} className="rounded-2xl bg-gray-50 p-3 text-xs">
@@ -305,12 +316,13 @@ function AuditPanel({ logs }: { logs: AuditLog[] }) {
           </div>
         ))}
       </div>
-      {!logs.length && <p className="text-sm font-bold text-gray-400">No audit logs.</p>}
+      {!logs.length && <p className="text-sm font-bold text-gray-400">{t("noAuditLogs")}</p>}
     </Card>
   );
 }
 
 function HfImportModal({ api, project, onClose, setMessage }: { api: ApiClient; project: Project; onClose: () => void; setMessage: (message: string) => void }) {
+  const { t } = useI18n();
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -329,7 +341,7 @@ function HfImportModal({ api, project, onClose, setMessage }: { api: ApiClient; 
   }
 
   return (
-    <Dialog open={Boolean(project)} onOpenChange={(open) => !open && onClose()} title="Import from HuggingFace">
+    <Dialog open={Boolean(project)} onOpenChange={(open) => !open && onClose()} title={t("importFromHuggingFace")}>
       <p className="mb-4 text-sm font-bold text-gray-500">Project: {project.name}</p>
       <form onSubmit={submit} className="space-y-3">
         <Input name="hf_repo" defaultValue="kurakurai/luth-sft" placeholder="Repo ID" required />
@@ -337,8 +349,8 @@ function HfImportModal({ api, project, onClose, setMessage }: { api: ApiClient; 
         <Input name="split" defaultValue="train" placeholder="Split" />
         <Input name="row_limit" defaultValue={5000} type="number" min={1} max={30000} placeholder="Max rows" />
         <div className="grid grid-cols-2 gap-3">
-          <Button type="button" onClick={onClose} className="border-gray-300 bg-white text-gray-500">Cancel</Button>
-          <Button className="border-[#46a302] bg-[#58cc02] text-white">Queue import</Button>
+          <Button type="button" onClick={onClose} className="border-gray-300 bg-white text-gray-500">{t("cancel")}</Button>
+          <Button className="border-[#46a302] bg-[#58cc02] text-white">{t("queueImport")}</Button>
         </div>
       </form>
     </Dialog>
