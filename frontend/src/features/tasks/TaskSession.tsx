@@ -176,7 +176,7 @@ export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => voi
                 <span>{keystrokes} keys</span>
                 <span>{tabSwitches} switches</span>
               </div>
-              <Button onClick={submit} className="border-[#1899d6] bg-[#1cb0f6] text-white">
+              <Button onClick={() => submit()} className="border-[#1899d6] bg-[#1cb0f6] text-white">
                 Submit <Sparkles className="ml-1 inline" size={16} />
               </Button>
             </div>
