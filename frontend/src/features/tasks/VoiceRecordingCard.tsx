@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
+import { useI18n } from "../../i18n";
 import { ApiClient } from "../../lib/api";
 import { taskPrompt } from "../../lib/utils";
 import { Task } from "../../types";
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export function VoiceRecordingCard({ api, task, submit, error, setError }: Props) {
+  const { t } = useI18n();
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const startedAtRef = useRef(0);
@@ -67,14 +69,14 @@ export function VoiceRecordingCard({ api, task, submit, error, setError }: Props
         headers: { "Content-Type": blob.type },
         body: blob,
       });
-      if (!response.ok) throw new Error("Recording upload failed");
+      if (!response.ok) throw new Error(t("recordingUploadFailed"));
       await submit({
         recording_key: upload.key,
         mime_type: blob.type,
         duration_ms: durationMs,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Recording submit failed");
+      setError(err instanceof Error ? err.message : t("recordingSubmitFailed"));
     } finally {
       setUploading(false);
     }
@@ -83,8 +85,8 @@ export function VoiceRecordingCard({ api, task, submit, error, setError }: Props
   return (
     <Card className="space-y-5">
       <div>
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#ff9600]">Voice Recording</p>
-        <h2 className="text-xl font-black text-[#3c3c3c] sm:text-3xl">Read this prompt clearly</h2>
+        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#ff9600]">{t("voiceRecordingTitle")}</p>
+        <h2 className="text-xl font-black text-[#3c3c3c] sm:text-3xl">{t("readPromptClearly")}</h2>
       </div>
       <div className="rounded-3xl bg-orange-50 p-4 text-lg font-black leading-relaxed text-[#3c3c3c] sm:text-2xl">
         {taskPrompt(task)}
@@ -97,21 +99,21 @@ export function VoiceRecordingCard({ api, task, submit, error, setError }: Props
         className={isRecording ? "flex min-h-28 w-full items-center justify-center gap-3 rounded-[32px] border-b-8 border-red-700 bg-red-500 text-xl font-black uppercase text-white" : "flex min-h-28 w-full items-center justify-center gap-3 rounded-[32px] border-b-8 border-[#46a302] bg-[#58cc02] text-xl font-black uppercase text-white"}
       >
         {isRecording ? <Square /> : <Mic />}
-        {isRecording ? "Release to stop" : "Hold to record"}
+        {isRecording ? t("releaseToStop") : t("holdToRecord")}
       </button>
       <div className="grid gap-3 sm:grid-cols-2">
         <Button type="button" onClick={isRecording ? stopRecording : startRecording} className="border-gray-300 bg-white text-gray-500">
-          {isRecording ? "Stop" : "Tap start"}
+          {isRecording ? t("stop") : t("tapStart")}
         </Button>
         <Button type="button" onClick={stopRecording} disabled={!isRecording} className="border-gray-300 bg-white text-gray-500">
-          Tap stop
+          {t("tapStop")}
         </Button>
       </div>
       {previewUrl && <audio controls src={previewUrl} className="w-full" />}
-      {durationMs > 0 && <p className="text-sm font-bold text-gray-500">Recorded {Math.round(durationMs / 1000)} seconds. You can hold again to re-record.</p>}
+      {durationMs > 0 && <p className="text-sm font-bold text-gray-500">{t("recorded")} {Math.round(durationMs / 1000)} {t("seconds")}. {t("rerecordHint")}</p>}
       {error && <p className="rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-600">{error}</p>}
       <Button disabled={!blob || uploading} onClick={uploadAndSubmit} className="sticky bottom-20 w-full border-[#1899d6] bg-[#1cb0f6] text-white sm:static">
-        {uploading ? "Uploading..." : "Submit recording"}
+        {uploading ? t("uploading") : t("submitRecording")}
       </Button>
     </Card>
   );

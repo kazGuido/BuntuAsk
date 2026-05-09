@@ -3,12 +3,14 @@ import { useEffect, useState } from "react";
 import { EmptyState, Loading } from "../../components/Loading";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
+import { useI18n } from "../../i18n";
 import { ApiClient } from "../../lib/api";
 import { taskPrompt } from "../../lib/utils";
 import { Submission } from "../../types";
 import { resolveAudioUrl, taskWorkflow } from "../tasks/audio";
 
 export function ReviewQueue({ api, onDone }: { api: ApiClient; onDone: () => void }) {
+  const { t } = useI18n();
   const [items, setItems] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -33,19 +35,20 @@ export function ReviewQueue({ api, onDone }: { api: ApiClient; onDone: () => voi
     setItems((value) => value.filter((item) => item.id !== submissionId));
   }
 
-  if (loading) return <Loading label="Loading review queue..." />;
-  if (error) return <EmptyState title="Queue unavailable" message={error} onDone={onDone} />;
-  if (!items.length) return <EmptyState title="Review queue empty" message="No pending submissions need review." onDone={onDone} />;
+  if (loading) return <Loading label={t("loadingReviewQueue")} />;
+  if (error) return <EmptyState title={t("queueUnavailable")} message={error} onDone={onDone} />;
+  if (!items.length) return <EmptyState title={t("reviewQueueEmpty")} message={t("noPendingReviews")} onDone={onDone} />;
 
   return (
     <div className="space-y-4">
-      <button onClick={onDone} className="text-sm font-black uppercase text-gray-400">Back</button>
+      <button onClick={onDone} className="text-sm font-black uppercase text-gray-400">{t("back")}</button>
       {items.map((item) => <ReviewCard key={item.id} item={item} api={api} decide={decide} />)}
     </div>
   );
 }
 
 function ReviewCard({ item, api, decide }: { item: Submission; api: ApiClient; decide: (submissionId: number, decision: "APPROVE" | "REJECT") => Promise<void> }) {
+  const { t } = useI18n();
   const [sourceAudioUrl, setSourceAudioUrl] = useState("");
   const [recordingUrl, setRecordingUrl] = useState("");
   const workflow = taskWorkflow(item.task);
@@ -64,17 +67,17 @@ function ReviewCard({ item, api, decide }: { item: Submission; api: ApiClient; d
 
   return (
     <Card>
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-[#ff9600]">Submission #{item.id} / {workflow || "TEXT"}</p>
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-[#ff9600]">{t("submission")} #{item.id} / {workflow || "TEXT"}</p>
       <h3 className="mt-2 text-lg font-black text-[#3c3c3c] sm:text-2xl">{taskPrompt(item.task)}</h3>
       {sourceAudioUrl && (
         <div className="my-4 rounded-2xl bg-sky-50 p-3">
-          <p className="mb-2 text-xs font-black uppercase text-sky-600">Source audio</p>
+          <p className="mb-2 text-xs font-black uppercase text-sky-600">{t("sourceAudio")}</p>
           <audio controls src={sourceAudioUrl} className="w-full" />
         </div>
       )}
       {recordingUrl && (
         <div className="my-4 rounded-2xl bg-orange-50 p-3">
-          <p className="mb-2 text-xs font-black uppercase text-orange-600">Worker recording</p>
+          <p className="mb-2 text-xs font-black uppercase text-orange-600">{t("workerRecording")}</p>
           <audio controls src={recordingUrl} className="w-full" />
         </div>
       )}
@@ -82,8 +85,8 @@ function ReviewCard({ item, api, decide }: { item: Submission; api: ApiClient; d
         {String(item.result_payload.transcript || item.result_payload.text || item.result_payload.recording_key || JSON.stringify(item.result_payload))}
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Button onClick={() => decide(item.id, "APPROVE")} className="flex-1 border-[#46a302] bg-[#58cc02] text-white">Approve</Button>
-        <Button onClick={() => decide(item.id, "REJECT")} className="flex-1 border-[#cc3f3f] bg-[#ff4b4b] text-white">Reject</Button>
+        <Button onClick={() => decide(item.id, "APPROVE")} className="flex-1 border-[#46a302] bg-[#58cc02] text-white">{t("approve")}</Button>
+        <Button onClick={() => decide(item.id, "REJECT")} className="flex-1 border-[#cc3f3f] bg-[#ff4b4b] text-white">{t("reject")}</Button>
       </div>
     </Card>
   );

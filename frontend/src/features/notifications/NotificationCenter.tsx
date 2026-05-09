@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 
 import { Button } from "../../components/ui/button";
 import { Dialog } from "../../components/ui/dialog";
+import { useI18n } from "../../i18n";
 import { ApiClient } from "../../lib/api";
 import { Notification } from "../../types";
 
 export function NotificationCenter({ api }: { api: ApiClient }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [count, setCount] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -31,7 +33,7 @@ export function NotificationCenter({ api }: { api: ApiClient }) {
 
   return (
     <>
-      <button onClick={() => { setOpen(true); load(); }} className="relative rounded-full p-2 text-gray-500 hover:bg-gray-100" title="Notifications">
+      <button onClick={() => { setOpen(true); load(); }} className="relative rounded-full p-2 text-gray-500 hover:bg-gray-100" title={t("notifications")}>
         <Bell size={18} />
         {count > 0 && (
           <span className="absolute -right-1 -top-1 rounded-full bg-[#ff4b4b] px-1.5 py-0.5 text-[10px] font-black text-white">
@@ -39,7 +41,7 @@ export function NotificationCenter({ api }: { api: ApiClient }) {
           </span>
         )}
       </button>
-      <Dialog open={open} onOpenChange={setOpen} title="Notifications">
+      <Dialog open={open} onOpenChange={setOpen} title={t("notifications")}>
         <div className="max-h-96 space-y-3 overflow-auto pr-1">
           {notifications.map((notification) => (
             <div key={notification.id} className={notification.is_read ? "rounded-2xl bg-gray-50 p-3" : "rounded-2xl bg-sky-50 p-3"}>
@@ -54,13 +56,13 @@ export function NotificationCenter({ api }: { api: ApiClient }) {
                 </div>
                 {!notification.is_read && (
                   <button className="text-xs font-black uppercase text-[#1cb0f6]" onClick={() => markRead(notification.id)}>
-                    Mark read
+                    {t("markRead")}
                   </button>
                 )}
               </div>
             </div>
           ))}
-          {!notifications.length && <p className="rounded-2xl bg-gray-50 p-4 text-sm font-bold text-gray-400">No notifications yet.</p>}
+          {!notifications.length && <p className="rounded-2xl bg-gray-50 p-4 text-sm font-bold text-gray-400">{t("noNotifications")}</p>}
         </div>
         {notifications.some((item) => !item.is_read) && (
           <Button
@@ -72,7 +74,7 @@ export function NotificationCenter({ api }: { api: ApiClient }) {
               await load();
             }}
           >
-            Mark all read
+            {t("markAllRead")}
           </Button>
         )}
       </Dialog>
