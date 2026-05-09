@@ -1,7 +1,8 @@
 from sqlmodel import Session, select
 
+from app.api.notifications import notify_user_id
 from app.api.utils import payload_text
-from app.models import FraudAlert, FraudAlertType, Review, ReviewDecision, Submission, User
+from app.models import FraudAlert, FraudAlertType, NotificationChannel, Review, ReviewDecision, Submission, User, UserRole
 
 
 MIN_KEYSTROKE_RATIO = 0.6
@@ -11,6 +12,27 @@ MIN_TIME_SPENT_MS = 1200
 def create_alert(session: Session, user_id: int, alert_type: FraudAlertType, description: str) -> FraudAlert:
     alert = FraudAlert(user_id=user_id, alert_type=alert_type, description=description, resolved=False)
     session.add(alert)
+    notify_user_id(
+        session,
+        user_id=user_id,
+        title="Account quality alert",
+        body=description,
+        channels=[NotificationChannel.IN_APP],
+        category="FRAUD",
+        metadata={"alert_type": alert_type.value},
+    )
+    admins = session.exec(select(User).where(User.role == UserRole.ADMIN, User.is_active == True)).all()  # noqa: E712
+    for admin in admins:
+        if admin.id != user_id:
+            notify_user_id(
+                session,
+                user_id=admin.id or 0,
+                title="Fraud alert needs review",
+                body=description,
+                channels=[NotificationChannel.IN_APP],
+                category="FRAUD",
+                metadata={"alert_type": alert_type.value, "flagged_user_id": user_id},
+            )
     return alert
 
 

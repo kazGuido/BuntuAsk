@@ -6,11 +6,12 @@ from sqlmodel import Session, select
 
 from app.api.audit import write_audit
 from app.api.deps import get_current_user
+from app.api.notifications import create_notification
 from app.api.schemas import TokenResponse, UserCreate, UserLogin, UserRead
 from app.api.security import create_access_token, hash_password, verify_password
 from app.api.utils import client_ip
 from app.db.session import get_session
-from app.models import AuditAction, User, UserRole
+from app.models import AuditAction, NotificationChannel, User, UserRole
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -59,6 +60,15 @@ def register(
         entity_id=user.id,
         description=f"User {user.username} registered as ANNOTATOR.",
         ip_address=client_ip(request),
+    )
+    create_notification(
+        session,
+        user=user,
+        title="Welcome to BuntuAsk",
+        body="Your annotator account is ready. Claim your first task batch when you are ready to start earning.",
+        channels=[NotificationChannel.IN_APP],
+        category="ACCOUNT",
+        metadata={"event": "user_registered"},
     )
     session.commit()
     session.refresh(user)

@@ -7,10 +7,11 @@ from sqlmodel import Session, select
 from app.api.audit import write_audit
 from app.api.deps import get_current_user
 from app.api.fraud import evaluate_submission
+from app.api.notifications import create_notification, notify_user_id
 from app.api.schemas import ClaimRequest, SubmissionCreate, SubmissionRead, TaskRead
 from app.api.utils import client_ip, utc_now
 from app.db.session import get_session
-from app.models import AuditAction, Submission, Task, TaskStatus, User
+from app.models import AuditAction, NotificationChannel, Submission, Task, TaskStatus, User, UserRole
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -59,6 +60,16 @@ def claim_tasks(
             entity_type="task",
             entity_id=task.id,
             description=f"Task {task.id} claimed by {current_user.username}.",
+        )
+    if tasks:
+        create_notification(
+            session,
+            user=current_user,
+            title="Task batch claimed",
+            body=f"You claimed {len(tasks)} task{'s' if len(tasks) != 1 else ''}. Submit before the 30 minute lock expires.",
+            channels=[NotificationChannel.IN_APP],
+            category="TASK",
+            metadata={"task_ids": [task.id for task in tasks]},
         )
     session.commit()
     return [serialize_task(task) for task in tasks]
@@ -117,6 +128,39 @@ def submit_task(
         metadata={"fraud_alerts": [alert.alert_type.value for alert in alerts]},
         ip_address=submission.ip_address,
     )
+    create_notification(
+        session,
+        user=current_user,
+        title="Submission received",
+        body=f"Task {task.id} is now pending review. You will be notified when reviewers reach a decision.",
+        channels=[NotificationChannel.IN_APP],
+        category="TASK",
+        metadata={"task_id": task.id, "submission_id": submission.id},
+    )
+    if alerts:
+        create_notification(
+            session,
+            user=current_user,
+            title="Quality check warning",
+            body="Your submission triggered automated quality checks. It is still queued for review, but repeated flags can lower trust.",
+            channels=[NotificationChannel.IN_APP],
+            category="FRAUD",
+            metadata={"task_id": task.id, "submission_id": submission.id, "alert_types": [alert.alert_type.value for alert in alerts]},
+        )
+    reviewers = session.exec(
+        select(User).where(User.role.in_([UserRole.REVIEWER, UserRole.ADMIN]), User.is_active == True)  # noqa: E712
+    ).all()
+    for reviewer in reviewers:
+        if reviewer.id != current_user.id:
+            notify_user_id(
+                session,
+                user_id=reviewer.id or 0,
+                title="New submission ready for review",
+                body=f"Submission {submission.id} for task {task.id} is waiting in the review queue.",
+                channels=[NotificationChannel.IN_APP],
+                category="REVIEW",
+                metadata={"task_id": task.id, "submission_id": submission.id},
+            )
     session.commit()
     session.refresh(submission)
     session.refresh(task)

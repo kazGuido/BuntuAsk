@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 
 from app.api.audit import write_audit
 from app.api.deps import require_admin
+from app.api.notifications import create_notification, notify_user_id
 from app.api.policy import distribute_approval_rewards
 from app.api.schemas import (
     ConflictResolveRequest,
@@ -26,6 +27,7 @@ from app.models import (
     FraudAlert,
     ImportJob,
     ImportJobStatus,
+    NotificationChannel,
     Project,
     ProjectPolicy,
     Review,
@@ -114,6 +116,15 @@ def import_hf_dataset(job_id: int) -> None:
             job.status = ImportJobStatus.FAILED
             job.error_message = f"Project {job.project_id} not found"
             job.completed_at = datetime.utcnow()
+            notify_user_id(
+                session,
+                user_id=job.requested_by_id,
+                title="Hugging Face import failed",
+                body=job.error_message,
+                channels=[NotificationChannel.IN_APP],
+                category="IMPORT",
+                metadata={"import_job_id": job.id, "project_id": job.project_id},
+            )
             session.add(job)
             session.commit()
             return
@@ -163,6 +174,15 @@ def import_hf_dataset(job_id: int) -> None:
                 description=f"HF import job {job.id} completed with {imported} imported and {skipped} skipped rows.",
                 metadata={"project_id": job.project_id, "hf_repo": job.hf_repo},
             )
+            notify_user_id(
+                session,
+                user_id=job.requested_by_id,
+                title="Hugging Face import completed",
+                body=f"Import job {job.id} finished with {imported} rows ready for admin review and {skipped} skipped rows.",
+                channels=[NotificationChannel.IN_APP],
+                category="IMPORT",
+                metadata={"import_job_id": job.id, "project_id": job.project_id, "imported_count": imported, "skipped_count": skipped},
+            )
             session.add(job)
             session.commit()
             logger.info("HF import completed for project %s: %s rows", job.project_id, imported)
@@ -172,6 +192,15 @@ def import_hf_dataset(job_id: int) -> None:
             job.imported_count = imported
             job.skipped_count = skipped
             job.completed_at = datetime.utcnow()
+            notify_user_id(
+                session,
+                user_id=job.requested_by_id,
+                title="Hugging Face import failed",
+                body=f"Import job {job.id} failed: {exc}",
+                channels=[NotificationChannel.IN_APP],
+                category="IMPORT",
+                metadata={"import_job_id": job.id, "project_id": job.project_id},
+            )
             session.add(job)
             session.commit()
             logger.exception("HF import job %s failed", job_id)
@@ -258,6 +287,15 @@ def import_hf(
         metadata=payload.model_dump(),
         ip_address=request.client.host if request.client else None,
     )
+    create_notification(
+        session,
+        user=admin_user,
+        title="Hugging Face import queued",
+        body=f"Import job {job.id} for {payload.hf_repo} is queued. Imported rows will require admin review before users can claim them.",
+        channels=[NotificationChannel.IN_APP],
+        category="IMPORT",
+        metadata={"import_job_id": job.id, "project_id": payload.project_id},
+    )
     session.commit()
     background_tasks.add_task(import_hf_dataset, job.id)
     return HfImportResponse(status=job.status.value, job_id=job.id or 0, project_id=payload.project_id, row_limit=payload.row_limit)
@@ -308,6 +346,15 @@ def resolve_import_review_task(
         metadata={"project_id": task.project_id},
         ip_address=request.client.host if request.client else None,
     )
+    create_notification(
+        session,
+        user=admin_user,
+        title="Imported task reviewed",
+        body=f"Imported task {task.id} was {'approved for the live queue' if payload.approved else 'rejected'}.",
+        channels=[NotificationChannel.IN_APP],
+        category="IMPORT",
+        metadata={"task_id": task.id, "project_id": task.project_id, "approved": payload.approved},
+    )
     session.commit()
     return {"status": task.status.value}
 
@@ -343,6 +390,15 @@ def resolve_fraud_alert(
         description=f"Fraud alert {alert.id} resolved.",
         ip_address=request.client.host if request.client else None,
     )
+    notify_user_id(
+        session,
+        user_id=alert.user_id,
+        title="Fraud alert resolved",
+        body=f"Fraud alert {alert.id} has been marked resolved by the admin team.",
+        channels=[NotificationChannel.IN_APP],
+        category="FRAUD",
+        metadata={"alert_id": alert.id, "alert_type": alert.alert_type.value},
+    )
     session.commit()
     return {"status": "resolved"}
 
@@ -368,6 +424,15 @@ def ban_user(
         entity_id=user.id,
         description=f"User {user.username} banned.",
         ip_address=request.client.host if request.client else None,
+    )
+    create_notification(
+        session,
+        user=user,
+        title="Account disabled",
+        body="Your BuntuAsk account has been disabled. Contact support if you believe this is a mistake.",
+        channels=[NotificationChannel.IN_APP, NotificationChannel.EMAIL],
+        category="ACCOUNT",
+        metadata={"user_id": user.id},
     )
     session.commit()
     return {"status": "banned"}
@@ -413,6 +478,16 @@ def resolve_conflict(
         metadata={"approved": payload.approved},
         ip_address=request.client.host if request.client else None,
     )
+    if submission is not None:
+        notify_user_id(
+            session,
+            user_id=submission.annotator_id,
+            title="Conflict resolved",
+            body=f"Admin resolved task {task.id} as {task.status.value}.",
+            channels=[NotificationChannel.IN_APP],
+            category="REVIEW",
+            metadata={"task_id": task.id, "submission_id": submission.id, "approved": payload.approved},
+        )
     session.commit()
     return {"status": task.status.value}
 
@@ -452,6 +527,15 @@ def approve_withdrawal(
         entity_id=transaction.id,
         description=f"Withdrawal transaction {transaction.id} approved.",
         ip_address=request.client.host if request.client else None,
+    )
+    notify_user_id(
+        session,
+        user_id=transaction.user_id,
+        title="Withdrawal approved",
+        body=f"Your withdrawal for ${transaction.amount:.2f} has been approved.",
+        channels=[NotificationChannel.IN_APP, NotificationChannel.EMAIL],
+        category="PAYOUT",
+        metadata={"transaction_id": transaction.id, "amount": transaction.amount},
     )
     session.commit()
     return {"status": "completed"}

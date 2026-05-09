@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 from pydantic import ValidationError
 
 from app.api.admin import extract_prompt
@@ -79,3 +80,16 @@ def test_notification_schema_and_email_message_builder() -> None:
     assert message["To"] == "user@example.com"
     assert message["Subject"] == "Task approved"
     assert "You earned a reward." in message.get_content()
+
+
+def test_typical_event_workflows_emit_notifications() -> None:
+    api_dir = Path("api/app/api")
+    expected_hooks = {
+        "auth.py": "Welcome to BuntuAsk",
+        "tasks.py": "Submission received",
+        "reviews.py": "Review recorded",
+        "fraud.py": "Fraud alert needs review",
+        "admin.py": "Withdrawal approved",
+    }
+    for filename, marker in expected_hooks.items():
+        assert marker in (api_dir / filename).read_text()

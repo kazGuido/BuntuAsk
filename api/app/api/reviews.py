@@ -6,12 +6,13 @@ from sqlmodel import Session, select
 from app.api.audit import write_audit
 from app.api.deps import require_reviewer
 from app.api.fraud import evaluate_review
+from app.api.notifications import create_notification, notify_user_id
 from app.api.policy import evaluate_consensus
 from app.api.schemas import ReviewCreate, SubmissionRead
 from app.api.tasks import serialize_task
 from app.api.utils import client_ip
 from app.db.session import get_session
-from app.models import AuditAction, Review, Submission, Task, TaskStatus, User
+from app.models import AuditAction, NotificationChannel, Review, Submission, Task, TaskStatus, User
 
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
@@ -90,5 +91,44 @@ def create_review(
         metadata={"submission_id": submission.id, "task_id": submission.task_id, "new_status": new_status.value},
         ip_address=review.ip_address,
     )
+    create_notification(
+        session,
+        user=current_user,
+        title="Review recorded",
+        body=f"Your {payload.decision.value.lower()} review for submission {submission.id} was recorded.",
+        channels=[NotificationChannel.IN_APP],
+        category="REVIEW",
+        metadata={"submission_id": submission.id, "task_id": submission.task_id, "new_status": new_status.value},
+    )
+    if new_status == TaskStatus.CONFLICT:
+        notify_user_id(
+            session,
+            user_id=submission.annotator_id,
+            title="Submission escalated",
+            body=f"Task {submission.task_id} received conflicting reviews and is now in the admin conflict queue.",
+            channels=[NotificationChannel.IN_APP],
+            category="REVIEW",
+            metadata={"submission_id": submission.id, "task_id": submission.task_id},
+        )
+    elif new_status == TaskStatus.REJECTED:
+        notify_user_id(
+            session,
+            user_id=submission.annotator_id,
+            title="Submission rejected",
+            body=f"Task {submission.task_id} was rejected after review.",
+            channels=[NotificationChannel.IN_APP],
+            category="REVIEW",
+            metadata={"submission_id": submission.id, "task_id": submission.task_id},
+        )
+    elif new_status == TaskStatus.PENDING_REVIEW:
+        notify_user_id(
+            session,
+            user_id=submission.annotator_id,
+            title="Review received",
+            body=f"Task {submission.task_id} received a review and is waiting for the remaining consensus checks.",
+            channels=[NotificationChannel.IN_APP],
+            category="REVIEW",
+            metadata={"submission_id": submission.id, "task_id": submission.task_id},
+        )
     session.commit()
     return {"status": new_status.value}

@@ -161,6 +161,30 @@ def create_notification(
     return notification
 
 
+def notify_user_id(
+    session: Session,
+    *,
+    user_id: int,
+    title: str,
+    body: str,
+    channels: list[NotificationChannel] | None = None,
+    category: str = "GENERAL",
+    metadata: dict[str, Any] | None = None,
+) -> Notification | None:
+    user = session.get(User, user_id)
+    if user is None:
+        return None
+    return create_notification(
+        session,
+        user=user,
+        title=title,
+        body=body,
+        channels=channels or [NotificationChannel.IN_APP],
+        category=category,
+        metadata=metadata,
+    )
+
+
 @router.get("", response_model=list[NotificationRead])
 def list_notifications(
     current_user: Annotated[User, Depends(get_current_user)],
