@@ -57,6 +57,10 @@ export function AdminDashboard({ api, onDone }: { api: ApiClient; onDone: () => 
       method: "POST",
       body: JSON.stringify({
         name: String(form.get("name")),
+        description: String(form.get("description")),
+        language: String(form.get("language")),
+        guidelines: String(form.get("guidelines")),
+        sample_payload: parseSamplePayload(String(form.get("sample_payload") || "{}")),
         task_type: String(form.get("task_type")),
         workflow: String(form.get("workflow")),
         base_reward_annotator: Number(form.get("base_reward_annotator")),
@@ -100,6 +104,8 @@ function ProjectPanel({ projects, createProject, openImport }: { projects: Proje
       <h2 className="mb-4 flex items-center gap-2 text-2xl font-black"><Database /> Project config</h2>
       <form onSubmit={createProject} className="grid gap-3 sm:grid-cols-2">
         <Input name="name" required placeholder="Project name" />
+        <Input name="language" required placeholder="Language, e.g. Kirundi" />
+        <Input name="description" required placeholder="Project description" className="sm:col-span-2" />
         <select name="workflow" className="rounded-2xl border-2 border-gray-200 px-4 py-3 font-bold">
           <option value="TRANSLATION">Translation</option>
           <option value="AUDIO_TRANSCRIPTION">Audio-to-text transcription</option>
@@ -115,6 +121,8 @@ function ProjectPanel({ projects, createProject, openImport }: { projects: Proje
         <Input name="base_reward_reviewer" required type="number" step="0.001" placeholder="Reviewer reward" />
         <Input name="required_reviews" defaultValue={2} type="number" />
         <Input name="min_accuracy_threshold" defaultValue={0.8} type="number" step="0.01" />
+        <textarea name="guidelines" required placeholder="Worker/reviewer guidelines" className="min-h-24 rounded-2xl border-2 border-gray-200 px-4 py-3 font-bold outline-none focus:border-[#1cb0f6] sm:col-span-2" />
+        <textarea name="sample_payload" defaultValue={'{"prompt":"Sample task payload"}'} className="min-h-24 rounded-2xl border-2 border-gray-200 px-4 py-3 font-mono text-sm outline-none focus:border-[#1cb0f6] sm:col-span-2" />
         <Button className="border-[#1899d6] bg-[#1cb0f6] text-white sm:col-span-2">Create project</Button>
       </form>
       <div className="mt-5 grid gap-3">
@@ -147,7 +155,9 @@ function PendingProjectsPanel({ api, projects, refresh }: { api: ApiClient; proj
       {projects.map((project) => (
         <div key={project.id} className="mb-3 rounded-2xl bg-yellow-50 p-4">
           <p className="font-black text-[#3c3c3c]">{project.name}</p>
-          <p className="text-sm font-bold text-gray-500">{project.workflow} / {project.task_type} / owner #{project.owner_id}</p>
+          <p className="text-sm font-bold text-gray-500">{project.workflow} / {project.task_type} / {project.language || "no language"} / owner #{project.owner_id}</p>
+          <p className="mt-2 text-sm font-semibold text-gray-600">{project.description || "No description provided."}</p>
+          <pre className="mt-2 overflow-auto rounded-xl bg-white p-2 text-xs text-gray-500">{JSON.stringify(project.sample_payload || {}, null, 2)}</pre>
           <div className="mt-3 flex gap-3">
             <Button onClick={() => decide(project, true)} className="border-[#46a302] bg-[#58cc02] text-white">Approve</Button>
             <Button onClick={() => decide(project, false)} className="border-[#cc3f3f] bg-[#ff4b4b] text-white">Reject</Button>
@@ -157,6 +167,14 @@ function PendingProjectsPanel({ api, projects, refresh }: { api: ApiClient; proj
       {!projects.length && <p className="text-sm font-bold text-gray-400">No pending project approvals.</p>}
     </Card>
   );
+}
+
+function parseSamplePayload(value: string) {
+  try {
+    return JSON.parse(value || "{}");
+  } catch {
+    return { sample: value };
+  }
 }
 
 function NotificationSendPanel({ api, setMessage }: { api: ApiClient; setMessage: (message: string) => void }) {

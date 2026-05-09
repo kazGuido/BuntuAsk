@@ -130,3 +130,12 @@ def test_audio_project_create_schema_supports_asr_and_recording() -> None:
     )
     assert transcription.workflow == ProjectWorkflow.AUDIO_TRANSCRIPTION
     assert recording.workflow == ProjectWorkflow.VOICE_RECORDING
+
+    with pytest.raises(ValidationError):
+        ProjectCreate(
+            name="Bad ASR",
+            task_type="TEXT",
+            workflow="AUDIO_TRANSCRIPTION",
+            base_reward_annotator=0.02,
+            base_reward_reviewer=0.005,
+        )

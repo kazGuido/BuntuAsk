@@ -138,6 +138,10 @@ class Project(SQLModel, table=True):
     owner_id: int | None = Field(default=None, foreign_key="users.id", nullable=True, index=True)
     approved_by_id: int | None = Field(default=None, foreign_key="users.id", nullable=True, index=True)
     name: str = Field(index=True, max_length=160)
+    description: str = Field(default="", max_length=1000)
+    language: str = Field(default="", max_length=80)
+    guidelines: str = Field(default="")
+    sample_payload: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
     task_type: TaskType
     workflow: ProjectWorkflow = Field(default=ProjectWorkflow.TRANSLATION, index=True)
     status: ProjectStatus = Field(default=ProjectStatus.PENDING_APPROVAL, index=True)

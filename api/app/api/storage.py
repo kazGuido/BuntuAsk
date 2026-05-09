@@ -56,7 +56,11 @@ def authorize_download_key(user: User, key: str) -> str:
     normalized = key.strip().lstrip("/")
     if not normalized or ".." in normalized.split("/"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid storage key")
-    if user.role == UserRole.ADMIN or normalized.startswith(f"users/{user.id}/") or normalized.startswith("projects/"):
+    if (
+        user.role in {UserRole.ADMIN, UserRole.REVIEWER}
+        or normalized.startswith(f"users/{user.id}/")
+        or normalized.startswith("projects/")
+    ):
         return normalized
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Storage key is not accessible")
 
@@ -69,7 +73,7 @@ def upload_url(
     current_user: Annotated[User, Depends(get_current_user)] = None,
 ) -> StorageUrlResponse:
     settings = get_settings()
-    authorized_key = authorize_download_key(current_user, key)
+    authorized_key = authorize_storage_key(current_user, key)
     if content_type not in ALLOWED_UPLOAD_CONTENT_TYPES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported upload content type")
     url = s3_client().generate_presigned_url(
@@ -87,7 +91,7 @@ def download_url(
     current_user: Annotated[User, Depends(get_current_user)] = None,
 ) -> StorageUrlResponse:
     settings = get_settings()
-    authorized_key = authorize_storage_key(current_user, key)
+    authorized_key = authorize_download_key(current_user, key)
     url = s3_client().generate_presigned_url(
         "get_object",
         Params={"Bucket": settings.s3_bucket_name, "Key": authorized_key},

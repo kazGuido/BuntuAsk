@@ -144,10 +144,10 @@ export function TaskSession({ api, onDone }: { api: ApiClient; onDone: () => voi
         </div>
       )}
       {workflow === "AUDIO_TRANSCRIPTION" && (
-        <AudioTranscriptionCard api={api} task={current} keystrokes={keystrokes} setKeystrokes={setKeystrokes} submit={submitAudioPayload} error={error} setError={setError} />
+        <AudioTranscriptionCard key={current.id} api={api} task={current} keystrokes={keystrokes} setKeystrokes={setKeystrokes} submit={submitAudioPayload} error={error} setError={setError} />
       )}
       {workflow === "VOICE_RECORDING" && (
-        <VoiceRecordingCard api={api} task={current} submit={submitAudioPayload} error={error} setError={setError} />
+        <VoiceRecordingCard key={current.id} api={api} task={current} submit={submitAudioPayload} error={error} setError={setError} />
       )}
       {workflow !== "AUDIO_TRANSCRIPTION" && workflow !== "VOICE_RECORDING" && (
       <AnimatePresence mode="wait">

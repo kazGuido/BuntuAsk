@@ -23,6 +23,7 @@ export function AudioTranscriptionCard({ api, task, keystrokes, setKeystrokes, s
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const playedSegmentsRef = useRef<Array<[number, number]>>([]);
   const lastTimeRef = useRef(0);
+  const autoLoopRef = useRef(true);
   const [transcript, setTranscript] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoLoop, setAutoLoop] = useState(true);
@@ -31,6 +32,17 @@ export function AudioTranscriptionCard({ api, task, keystrokes, setKeystrokes, s
   const durationMs = audioDurationMs(task);
 
   useEffect(() => {
+    autoLoopRef.current = autoLoop;
+  }, [autoLoop]);
+
+  useEffect(() => {
+    setTranscript("");
+    setIsPlaying(false);
+    setAutoLoop(true);
+    setTotalPlayedMs(0);
+    setCoverageMs(0);
+    playedSegmentsRef.current = [];
+    lastTimeRef.current = 0;
     let cancelled = false;
     async function setup() {
       const url = await resolveAudioUrl(api, task);
@@ -51,7 +63,7 @@ export function AudioTranscriptionCard({ api, task, keystrokes, setKeystrokes, s
       ws.on("pause", () => setIsPlaying(false));
       ws.on("finish", () => {
         setIsPlaying(false);
-        if (autoLoop) {
+        if (autoLoopRef.current) {
           ws.seekTo(0);
           ws.play();
         }
@@ -73,7 +85,7 @@ export function AudioTranscriptionCard({ api, task, keystrokes, setKeystrokes, s
       wavesurferRef.current?.destroy();
       wavesurferRef.current = null;
     };
-  }, [api, task.id]);
+  }, [api, task.id, setError]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
