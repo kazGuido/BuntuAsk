@@ -5,6 +5,7 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import express from "express";
+import fs from "node:fs";
 import Redis from "ioredis";
 import pino from "pino";
 import QRCode from "qrcode";
@@ -27,6 +28,30 @@ app.get("/wa/status", (_request, response) => {
 
 app.get("/wa/qr", (_request, response) => {
   response.json({ qr: latestQr });
+});
+
+app.post("/wa/logout", async (_request, response) => {
+  try {
+    if (socket) {
+      try {
+        await socket.logout();
+      } catch {
+        // ignore logout errors during reset
+      }
+      socket.end(undefined);
+      socket = null;
+    }
+    fs.rmSync(authDir, { recursive: true, force: true });
+    latestQr = null;
+    connectionStatus = "starting";
+    response.json({ status: "reset" });
+    setTimeout(() => {
+      startSocket().catch((error) => logger.error(error));
+    }, 400);
+  } catch (error) {
+    logger.error({ error }, "Failed to reset WhatsApp session");
+    response.status(500).json({ status: "error", message: String(error) });
+  }
 });
 
 async function startSocket() {

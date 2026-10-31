@@ -84,7 +84,7 @@ export function AdminDashboard({ api, onDone }: { api: ApiClient; onDone: () => 
       <NotificationSendPanel api={api} setMessage={setMessage} />
       <div className="grid gap-5 lg:grid-cols-2">
         <FraudDesk api={api} alerts={alerts} refresh={refresh} />
-        <WhatsAppPanel status={waStatus} qr={qr} />
+        <WhatsAppPanel api={api} status={waStatus} qr={qr} setStatus={setWaStatus} setQr={setQr} />
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
         <TaskDecisionPanel title="Import review" tasks={importReviewTasks} actionPath="/admin/import-review/resolve" api={api} refresh={refresh} />
@@ -240,13 +240,61 @@ function FraudDesk({ api, alerts, refresh }: { api: ApiClient; alerts: FraudAler
   );
 }
 
-function WhatsAppPanel({ status, qr }: { status: string; qr: string | null }) {
+function WhatsAppPanel({
+  api,
+  status,
+  qr,
+  setStatus,
+  setQr,
+}: {
+  api: ApiClient;
+  status: string;
+  qr: string | null;
+  setStatus: (status: string) => void;
+  setQr: (qr: string | null) => void;
+}) {
   const { t } = useI18n();
+
+  useEffect(() => {
+    let timer: number | undefined;
+    async function refresh() {
+      try {
+        const statusData = await api<{ status: string }>("/whatsapp/status");
+        setStatus(statusData.status);
+        if (statusData.status === "qr_ready" || statusData.status === "starting") {
+          const qrData = await api<{ qr: string | null }>("/whatsapp/qr");
+          setQr(qrData.qr);
+        } else if (statusData.status === "open") {
+          setQr(null);
+        }
+      } catch {
+        setStatus("offline");
+      }
+    }
+    refresh();
+    timer = window.setInterval(refresh, 4000);
+    return () => window.clearInterval(timer);
+  }, [api, setQr, setStatus]);
+
+  async function resetSession() {
+    await api("/whatsapp/reset", { method: "POST" });
+    setStatus("starting");
+    setQr(null);
+  }
+
   return (
     <Card>
       <h2 className="mb-3 flex items-center gap-2 text-xl font-black"><QrCode /> {t("whatsappPanel")}</h2>
       <p className="mb-3 text-sm font-bold text-gray-500">{t("sidecarStatus")}: {status}</p>
       {qr ? <img src={qr} alt="WhatsApp QR" className="mx-auto w-56 rounded-2xl bg-white" /> : <p className="rounded-2xl bg-gray-50 p-4 text-sm font-bold text-gray-400">{t("qrNotReady")}</p>}
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <Button type="button" onClick={() => api<{ qr: string | null }>("/whatsapp/qr").then((data) => setQr(data.qr))} className="min-h-11 border-gray-300 bg-white text-gray-600">
+          {t("whatsappRefreshQr")}
+        </Button>
+        <Button type="button" onClick={resetSession} className="min-h-11 border-[#cc3f3f] bg-[#ff4b4b] text-white">
+          {t("whatsappLogout")}
+        </Button>
+      </div>
     </Card>
   );
 }

@@ -1,5 +1,6 @@
 export type Role = "ADMIN" | "ANNOTATOR" | "REVIEWER";
-export type View = "dashboard" | "annotate" | "review" | "admin";
+export type View = "dashboard" | "annotate" | "annotate-translate" | "annotate-record" | "review" | "admin" | "your-work";
+export type SessionWorkflow = "TRANSLATION" | "VOICE_RECORDING" | "AUDIO_TRANSCRIPTION";
 
 export type User = {
   id: number;
@@ -10,6 +11,15 @@ export type User = {
   wallet_balance: number;
   is_active: boolean;
   trust_score: number;
+  onboarding_completed?: boolean;
+  tasks_completed_count?: number;
+  current_streak?: number;
+};
+
+export type WorkSummary = {
+  pending_review: number;
+  accepted: number;
+  earned_usd: number;
 };
 
 export type Project = {
@@ -38,6 +48,10 @@ export type Task = {
   locked_until?: string | null;
   storage_key?: string | null;
   claimed_by_id?: number | null;
+  project_workflow?: Project["workflow"];
+  project_language?: string;
+  source_language?: string;
+  reward_usd?: number;
 };
 
 export type Submission = {

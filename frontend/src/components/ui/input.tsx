@@ -2,7 +2,7 @@ import { forwardRef, InputHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 import { cn } from "../../lib/utils";
 
-const fieldClass = "w-full rounded-2xl border-2 border-gray-200 px-4 py-3 font-bold outline-none focus:border-[#1cb0f6]";
+const fieldClass = "min-h-12 w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-base font-bold outline-none focus:border-[#1cb0f6]";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(({ className, ...props }, ref) => {
   return <input ref={ref} {...props} className={cn(fieldClass, className)} />;

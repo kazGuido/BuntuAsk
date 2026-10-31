@@ -112,7 +112,8 @@ export function VoiceRecordingCard({ api, task, submit, error, setError }: Props
       {previewUrl && <audio controls src={previewUrl} className="w-full" />}
       {durationMs > 0 && <p className="text-sm font-bold text-gray-500">{t("recorded")} {Math.round(durationMs / 1000)} {t("seconds")}. {t("rerecordHint")}</p>}
       {error && <p className="rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-600">{error}</p>}
-      <Button disabled={!blob || uploading} onClick={uploadAndSubmit} className="sticky bottom-20 w-full border-[#1899d6] bg-[#1cb0f6] text-white sm:static">
+      {!blob && !uploading && <p className="text-sm font-semibold text-gray-500">{t("recordClipFirst")}</p>}
+      <Button disabled={!blob || uploading} onClick={uploadAndSubmit} className="min-h-12 w-full border-[#1899d6] bg-[#1cb0f6] text-white">
         {uploading ? t("uploading") : t("submitRecording")}
       </Button>
     </Card>

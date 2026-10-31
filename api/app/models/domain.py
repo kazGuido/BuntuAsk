@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -118,6 +118,10 @@ class User(SQLModel, table=True):
     wallet_balance: float = Field(default=0.0)
     is_active: bool = Field(default=True)
     trust_score: float = Field(default=100.0)
+    onboarding_completed_at: datetime | None = Field(default=None, nullable=True)
+    tasks_completed_count: int = Field(default=0)
+    current_streak: int = Field(default=0)
+    last_active_date: date | None = Field(default=None, nullable=True)
 
     submissions: list["Submission"] = Relationship(back_populates="annotator")
     reviews: list["Review"] = Relationship(back_populates="reviewer")

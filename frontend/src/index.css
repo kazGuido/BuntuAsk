@@ -17,6 +17,7 @@
     background: #f5f5f0;
     color: #1f2933;
     -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
   }
 }
 
