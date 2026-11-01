@@ -9,9 +9,17 @@ import { Card } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { LanguageToggle, useI18n } from "../../i18n";
 
-export function AuthPanel({ onLogin }: { onLogin: (token: string, user: User) => void }) {
+export function AuthPanel({
+  onLogin,
+  initialMode = "login",
+  onBack,
+}: {
+  onLogin: (token: string, user: User) => void;
+  initialMode?: "login" | "register";
+  onBack?: () => void;
+}) {
   const { t } = useI18n();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [whatsappE164, setWhatsappE164] = useState("");
@@ -56,7 +64,15 @@ export function AuthPanel({ onLogin }: { onLogin: (token: string, user: User) =>
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-[#f5f5f0] p-4">
-      <div className="absolute right-4 top-4" style={{ top: "max(1rem, env(safe-area-inset-top))" }}>
+      <div
+        className="absolute right-4 top-4 flex items-center gap-2"
+        style={{ top: "max(1rem, env(safe-area-inset-top))" }}
+      >
+        {onBack && (
+          <button type="button" onClick={onBack} className="min-h-11 rounded-2xl px-3 text-sm font-black text-[#1cb0f6]">
+            {t("back")}
+          </button>
+        )}
         <LanguageToggle />
       </div>
       <Card className="w-full max-w-md">

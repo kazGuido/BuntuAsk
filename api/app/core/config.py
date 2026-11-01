@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     frontend_dist_dir: Path = Path("/app/frontend_dist")
     whatsapp_sidecar_url: str = "http://whatsapp_sidecar:3000"
 
+    public_site_url: str | None = None
+    basic_auth_enabled: bool = True
+    basic_auth_user: str = "guido"
+    basic_auth_password: str = "guido"
+
     smtp_host: str | None = None
     smtp_port: int = 587
     smtp_username: str | None = None

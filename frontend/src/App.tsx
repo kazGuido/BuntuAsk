@@ -1,13 +1,15 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { LogOut } from "lucide-react";
+import { LogOut, Shield } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { HeaderOverflowMenu } from "./components/HeaderOverflowMenu";
 import { MobileNav } from "./components/MobileNav";
 import { Loading } from "./components/Loading";
 import { useApi } from "./lib/api";
 import { AdminDashboard } from "./features/admin/AdminDashboard";
 import { AuthPanel } from "./features/auth/AuthPanel";
 import { Dashboard, YourWorkPanel } from "./features/dashboard/Dashboard";
+import { LandingPage } from "./features/landing/LandingPage";
 import { NotificationCenter } from "./features/notifications/NotificationCenter";
 import { ReviewQueue } from "./features/reviews/ReviewQueue";
 import { TaskSession } from "./features/tasks/TaskSession";
@@ -20,12 +22,15 @@ function workflowForView(view: View): SessionWorkflow | undefined {
   return undefined;
 }
 
+type AuthScreen = null | "login" | "register";
+
 export default function App() {
   const { t } = useI18n();
   const [token, setToken] = useState(() => localStorage.getItem("buntu_token"));
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<View>("dashboard");
   const [loading, setLoading] = useState(Boolean(token));
+  const [authScreen, setAuthScreen] = useState<AuthScreen>(null);
   const api = useApi(token);
 
   useEffect(() => {
@@ -41,16 +46,30 @@ export default function App() {
 
   const sessionWorkflow = useMemo(() => workflowForView(view), [view]);
   const inSession = view === "annotate" || view === "annotate-translate" || view === "annotate-record";
+  const showMobileNav = !inSession;
 
   if (loading) return <Loading label={t("restoringSession")} />;
+
   if (!token || !user) {
+    if (authScreen) {
+      return (
+        <AuthPanel
+          initialMode={authScreen}
+          onBack={() => setAuthScreen(null)}
+          onLogin={(accessToken, loggedInUser) => {
+            localStorage.setItem("buntu_token", accessToken);
+            setToken(accessToken);
+            setUser(loggedInUser);
+            setAuthScreen(null);
+          }}
+        />
+      );
+    }
     return (
-      <AuthPanel
-        onLogin={(accessToken, loggedInUser) => {
-          localStorage.setItem("buntu_token", accessToken);
-          setToken(accessToken);
-          setUser(loggedInUser);
-        }}
+      <LandingPage
+        onSignUp={() => setAuthScreen("register")}
+        onLogIn={() => setAuthScreen("login")}
+        onHowItWorks={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}
       />
     );
   }
@@ -59,9 +78,11 @@ export default function App() {
     localStorage.removeItem("buntu_token");
     setToken(null);
     setUser(null);
+    setAuthScreen(null);
   }
 
   const showTrust = (user.tasks_completed_count || 0) > 0;
+  const isAdmin = user.role === "ADMIN";
 
   return (
     <div className="min-h-screen bg-[#f5f5f0] font-sans">
@@ -81,16 +102,35 @@ export default function App() {
               </span>
             )}
             <span className="rounded-full bg-[#1cb0f6]/10 px-3 py-1 text-[#1cb0f6]">${user.wallet_balance.toFixed(3)}</span>
-            <LanguageToggle />
-            <NotificationCenter api={api} />
-            <button type="button" onClick={logout} className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100" title={t("logout")}>
-              <LogOut size={18} />
-            </button>
+            <div className="hidden items-center gap-2 sm:flex">
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setView("admin")}
+                  className="flex min-h-11 items-center gap-1 rounded-full bg-[#5a5a40]/10 px-3 py-1 text-[#5a5a40]"
+                >
+                  <Shield size={16} /> {t("navAdmin")}
+                </button>
+              )}
+              <LanguageToggle />
+              <NotificationCenter api={api} />
+              <button
+                type="button"
+                onClick={logout}
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100"
+                title={t("logout")}
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
+            <HeaderOverflowMenu api={api} onLogout={logout} showAdmin={isAdmin} onOpenAdmin={setView} />
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-5 pb-28 sm:px-6 sm:py-8 sm:pb-8">
+      <main
+        className={`mx-auto max-w-5xl px-4 py-5 sm:px-6 sm:py-8 sm:pb-8 ${showMobileNav ? "pb-28" : "pb-5"}`}
+      >
         <AnimatePresence mode="wait">
           <motion.div key={view} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
             {view === "dashboard" && <Dashboard user={user} setView={setView} api={api} onUserUpdated={setUser} />}
@@ -102,7 +142,7 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {!inSession && <MobileNav view={view} setView={setView} role={user.role} />}
+      {showMobileNav && <MobileNav view={view} setView={setView} role={user.role} />}
     </div>
   );
 }

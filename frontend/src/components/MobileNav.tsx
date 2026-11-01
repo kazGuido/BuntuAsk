@@ -1,7 +1,16 @@
-import { ClipboardList, Home, Languages, Mic } from "lucide-react";
+import { ClipboardCheck, ClipboardList, Home, Languages, Mic, Shield } from "lucide-react";
 
+import { useKeyboardInset } from "../hooks/useKeyboardInset";
 import { useI18n } from "../i18n";
 import { View } from "../types";
+
+function isNavActive(view: View, itemId: View): boolean {
+  if (view === itemId) return true;
+  if (view === "annotate" && itemId === "annotate-translate") return true;
+  if (view === "annotate-translate" && itemId === "annotate-translate") return true;
+  if (view === "annotate-record" && itemId === "annotate-record") return true;
+  return false;
+}
 
 export function MobileNav({
   view,
@@ -13,7 +22,7 @@ export function MobileNav({
   role: string;
 }) {
   const { t } = useI18n();
-  if (role === "REVIEWER") return null;
+  const keyboardInset = useKeyboardInset();
 
   const items =
     role === "ANNOTATOR"
@@ -23,20 +32,37 @@ export function MobileNav({
           { id: "annotate-record" as View, label: t("navRecord"), icon: Mic },
           { id: "your-work" as View, label: t("navWork"), icon: ClipboardList },
         ]
-      : [
-          { id: "dashboard" as View, label: t("navHome"), icon: Home },
-          { id: "review" as View, label: t("review"), icon: ClipboardList },
-        ];
+      : role === "REVIEWER"
+        ? [
+            { id: "dashboard" as View, label: t("navHome"), icon: Home },
+            { id: "review" as View, label: t("review"), icon: ClipboardCheck },
+          ]
+        : role === "ADMIN"
+          ? [
+              { id: "dashboard" as View, label: t("navHome"), icon: Home },
+              { id: "review" as View, label: t("review"), icon: ClipboardCheck },
+              { id: "admin" as View, label: t("navAdmin"), icon: Shield },
+            ]
+          : [
+              { id: "dashboard" as View, label: t("navHome"), icon: Home },
+              { id: "review" as View, label: t("review"), icon: ClipboardCheck },
+            ];
+
+  const colClass =
+    items.length <= 2 ? "grid-cols-2" : items.length === 3 ? "grid-cols-3" : "grid-cols-4";
 
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t border-black/10 bg-white/95 backdrop-blur sm:hidden"
-      style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
+      style={{
+        paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
+        transform: keyboardInset > 0 ? `translateY(-${keyboardInset}px)` : undefined,
+      }}
     >
-      <div className={`mx-auto grid max-w-lg gap-1 px-2 py-1 ${items.length === 2 ? "grid-cols-2" : "grid-cols-4"}`}>
+      <div className={`mx-auto grid max-w-lg gap-1 px-2 py-1 ${colClass}`}>
         {items.map((item) => {
           const Icon = item.icon;
-          const active = view === item.id || (view === "annotate" && item.id.startsWith("annotate"));
+          const active = isNavActive(view, item.id);
           return (
             <button
               key={item.id}
@@ -49,7 +75,7 @@ export function MobileNav({
               }
             >
               <Icon size={18} />
-              <span className="mt-0.5 text-[10px] font-black">{item.label}</span>
+              <span className="mt-0.5 text-xs font-black leading-tight">{item.label}</span>
             </button>
           );
         })}

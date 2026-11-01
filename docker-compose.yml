@@ -105,6 +105,10 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
       SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-}
+      BASIC_AUTH_ENABLED: ${BASIC_AUTH_ENABLED:-true}
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:-guido}
+      BASIC_AUTH_PASSWORD: ${BASIC_AUTH_PASSWORD:-guido}
     depends_on:
       db:
         condition: service_healthy
