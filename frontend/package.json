@@ -13,6 +13,7 @@
     "@tailwindcss/vite": "latest",
     "@vitejs/plugin-react": "latest",
     "clsx": "^2.1.1",
+    "country-flag-icons": "^1.5.21",
     "framer-motion": "latest",
     "lucide-react": "latest",
     "react": "latest",
