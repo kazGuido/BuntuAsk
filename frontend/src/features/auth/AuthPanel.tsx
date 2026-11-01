@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 
+import { PrivacyModal, BuntuWordmark } from "../../components/BuntuBrand";
 import { PhoneField } from "../../components/PhoneField";
 import { API_PREFIX } from "../../lib/api";
 import { isValidE164 } from "../../lib/phone";
@@ -23,12 +24,18 @@ export function AuthPanel({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [whatsappE164, setWhatsappE164] = useState("");
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     if (mode === "register" && !isValidE164(whatsappE164)) {
       setError(t("phoneInvalid"));
+      return;
+    }
+    if (mode === "register" && !privacyAccepted) {
+      setError(t("privacyConsentRequired"));
       return;
     }
     setLoading(true);
@@ -44,6 +51,7 @@ export function AuthPanel({
             email: String(form.get("email")),
             whatsapp_number: String(form.get("whatsapp_number")),
             password: String(form.get("password")),
+            privacy_consent: true,
           };
 
     try {
@@ -64,6 +72,7 @@ export function AuthPanel({
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-[#f5f5f0] p-4">
+      <PrivacyModal open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
       <div
         className="absolute right-4 top-4 flex items-center gap-2"
         style={{ top: "max(1rem, env(safe-area-inset-top))" }}
@@ -77,11 +86,7 @@ export function AuthPanel({
       </div>
       <Card className="w-full max-w-md">
         <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#58cc02] text-2xl font-black text-white">B</div>
-          <div>
-            <h1 className="text-2xl font-black text-[#3c3c3c] sm:text-3xl">BuntuAsk</h1>
-            <p className="text-sm font-bold uppercase tracking-wider text-gray-400">{t("translateReviewEarn")}</p>
-          </div>
+          <BuntuWordmark className="scale-110" />
         </div>
         <div className="mb-4 grid grid-cols-2 rounded-2xl bg-gray-100 p-1">
           {(["login", "register"] as const).map((item) => (
@@ -119,6 +124,23 @@ export function AuthPanel({
             <Input name="password" placeholder={t("password")} type="password" minLength={8} required className="min-h-12" />
             <p className="mt-1 text-xs font-semibold text-gray-500">{t("passwordHint")}</p>
           </div>
+          {mode === "register" && (
+            <label className="flex items-start gap-2 rounded-2xl bg-gray-50 p-3 text-xs font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={privacyAccepted}
+                onChange={(event) => setPrivacyAccepted(event.target.checked)}
+                className="mt-1"
+                required
+              />
+              <span>
+                {t("privacyConsentLabel")}{" "}
+                <button type="button" onClick={() => setPrivacyOpen(true)} className="font-black text-[#1cb0f6] underline-offset-2 hover:underline">
+                  {t("privacyTitle")}
+                </button>
+              </span>
+            </label>
+          )}
           {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-600">{error}</p>}
           <Button disabled={loading} className="min-h-12 w-full border-[#1899d6] bg-[#1cb0f6] text-white">
             {loading ? t("working") : mode === "login" ? t("enter") : t("createAccountShort")}

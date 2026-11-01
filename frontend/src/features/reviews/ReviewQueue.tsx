@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { EmptyState, Loading } from "../../components/Loading";
+import { BrandedEmptyState } from "../../components/BuntuBrand";
+import { Loading } from "../../components/Loading";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { useI18n } from "../../i18n";
@@ -36,8 +37,19 @@ export function ReviewQueue({ api, onDone }: { api: ApiClient; onDone: () => voi
   }
 
   if (loading) return <Loading label={t("loadingReviewQueue")} />;
-  if (error) return <EmptyState title={t("queueUnavailable")} message={error} onDone={onDone} />;
-  if (!items.length) return <EmptyState title={t("reviewQueueEmpty")} message={t("noPendingReviews")} onDone={onDone} />;
+  if (error) {
+    return <BrandedEmptyState title={t("queueUnavailable")} message={error} guidance={t("emptyStateReviewGuidance")} onDone={onDone} />;
+  }
+  if (!items.length) {
+    return (
+      <BrandedEmptyState
+        title={t("reviewQueueEmpty")}
+        message={t("noPendingReviews")}
+        guidance={t("emptyStateReviewGuidance")}
+        onDone={onDone}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">

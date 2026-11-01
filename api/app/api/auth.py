@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -53,6 +53,7 @@ def register(
         password_hash=hash_password(payload.password),
         role=UserRole.ANNOTATOR,
         trust_score=50.0,
+        privacy_consent_at=datetime.now(timezone.utc),
     )
     session.add(user)
     session.flush()

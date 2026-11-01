@@ -123,6 +123,7 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     trust_score: float = Field(default=100.0)
     onboarding_completed_at: datetime | None = Field(default=None, nullable=True)
+    privacy_consent_at: datetime | None = Field(default=None, nullable=True)
     tasks_completed_count: int = Field(default=0)
     current_streak: int = Field(default=0)
     last_active_date: date | None = Field(default=None, nullable=True)
