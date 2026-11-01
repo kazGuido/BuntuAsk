@@ -22,6 +22,14 @@ class UserCreate(BaseModel):
     whatsapp_number: str
     password: str = Field(min_length=8)
 
+    @model_validator(mode="after")
+    def validate_whatsapp_e164(self) -> "UserCreate":
+        number = self.whatsapp_number.strip()
+        if not number.startswith("+") or not number[1:].isdigit() or not (8 <= len(number) <= 16):
+            raise ValueError("WhatsApp number must be in E.164 format, e.g. +25779000000")
+        self.whatsapp_number = number
+        return self
+
 
 class UserLogin(BaseModel):
     username_or_email: str
@@ -37,6 +45,9 @@ class UserRead(BaseModel):
     wallet_balance: float
     is_active: bool
     trust_score: float
+    onboarding_completed: bool = False
+    tasks_completed_count: int = 0
+    current_streak: int = 0
 
 
 class TokenResponse(BaseModel):
@@ -95,6 +106,13 @@ class ProjectApprovalRequest(BaseModel):
 
 class ClaimRequest(BaseModel):
     count: int = Field(default=1, ge=1, le=20)
+    workflow: ProjectWorkflow | None = None
+
+
+class WorkSummaryRead(BaseModel):
+    pending_review: int
+    accepted: int
+    earned_usd: float
 
 
 class TaskRead(BaseModel):
@@ -105,6 +123,10 @@ class TaskRead(BaseModel):
     locked_until: str | None = None
     storage_key: str | None = None
     claimed_by_id: int | None = None
+    project_workflow: ProjectWorkflow | None = None
+    project_language: str = ""
+    source_language: str = "English"
+    reward_usd: float = 0.0
 
 
 class SubmissionCreate(BaseModel):

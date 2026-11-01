@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -27,6 +28,9 @@ def serialize_user(user: User) -> UserRead:
         wallet_balance=user.wallet_balance,
         is_active=user.is_active,
         trust_score=user.trust_score,
+        onboarding_completed=user.onboarding_completed_at is not None,
+        tasks_completed_count=user.tasks_completed_count,
+        current_streak=user.current_streak,
     )
 
 
@@ -48,6 +52,7 @@ def register(
         whatsapp_number=payload.whatsapp_number,
         password_hash=hash_password(payload.password),
         role=UserRole.ANNOTATOR,
+        trust_score=50.0,
     )
     session.add(user)
     session.flush()
@@ -65,7 +70,7 @@ def register(
         session,
         user=user,
         title="Welcome to BuntuAsk",
-        body="Your annotator account is ready. Claim your first task batch when you are ready to start earning.",
+        body="Your account is ready. Complete the short tour, then start your first paid task.",
         channels=[NotificationChannel.IN_APP],
         category="ACCOUNT",
         metadata={"event": "user_registered"},
@@ -104,4 +109,17 @@ def login(
 
 @router.get("/me", response_model=UserRead)
 def me(current_user: Annotated[User, Depends(get_current_user)]) -> UserRead:
+    return serialize_user(current_user)
+
+
+@router.post("/onboarding/complete", response_model=UserRead)
+def complete_onboarding(
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> UserRead:
+    if current_user.onboarding_completed_at is None:
+        current_user.onboarding_completed_at = datetime.utcnow()
+        session.add(current_user)
+        session.commit()
+        session.refresh(current_user)
     return serialize_user(current_user)

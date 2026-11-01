@@ -8,8 +8,8 @@ from app.api.audit import write_audit
 from app.api.deps import get_current_user
 from app.api.fraud import evaluate_submission
 from app.api.notifications import create_notification, notify_user_id
-from app.api.schemas import ClaimRequest, SubmissionCreate, SubmissionRead, TaskRead
-from app.api.utils import client_ip, utc_now
+from app.api.schemas import ClaimRequest, SubmissionCreate, SubmissionRead, TaskRead, WorkSummaryRead
+from app.api.utils import client_ip, record_task_completion, utc_now
 from app.db.session import get_session
 from app.models import (
     AuditAction,
@@ -28,13 +28,34 @@ from app.models import (
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
+def _source_language(payload: dict) -> str:
+    for key in ("source_language", "source_lang", "from_language", "language_from"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    if isinstance(payload.get("french"), str):
+        return "French"
+    if isinstance(payload.get("english"), str):
+        return "English"
+    return "English"
+
+
 def serialize_task(task: Task, session: Session | None = None) -> TaskRead:
     source_payload = dict(task.source_payload)
-    if session is not None and "project_workflow" not in source_payload:
-        project = session.get(Project, task.project_id)
-        if project is not None:
+    project = session.get(Project, task.project_id) if session is not None else None
+    if project is not None:
+        if "project_workflow" not in source_payload:
             source_payload["project_workflow"] = project.workflow.value
             source_payload["project_status"] = project.status.value
+        workflow = project.workflow
+        project_language = project.language or "Kirundi"
+        reward = project.base_reward_annotator
+    else:
+        workflow_value = source_payload.get("project_workflow")
+        workflow = ProjectWorkflow(workflow_value) if workflow_value else None
+        project_language = str(source_payload.get("project_language") or "Kirundi")
+        reward = float(source_payload.get("reward_usd") or 0)
+
     return TaskRead(
         id=task.id or 0,
         project_id=task.project_id,
@@ -43,7 +64,90 @@ def serialize_task(task: Task, session: Session | None = None) -> TaskRead:
         locked_until=task.locked_until.isoformat() if task.locked_until else None,
         storage_key=task.storage_key,
         claimed_by_id=task.claimed_by_id,
+        project_workflow=workflow,
+        project_language=project_language,
+        source_language=_source_language(source_payload),
+        reward_usd=reward,
     )
+
+
+@router.get("/work-summary", response_model=WorkSummaryRead)
+def work_summary(
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> WorkSummaryRead:
+    pending = session.exec(
+        select(Submission)
+        .join(Task, Submission.task_id == Task.id)
+        .where(
+            Submission.annotator_id == current_user.id,
+            Task.status == TaskStatus.PENDING_REVIEW,
+        )
+    ).all()
+    accepted = session.exec(
+        select(Submission)
+        .join(Task, Submission.task_id == Task.id)
+        .where(
+            Submission.annotator_id == current_user.id,
+            Task.status == TaskStatus.APPROVED,
+        )
+    ).all()
+    return WorkSummaryRead(
+        pending_review=len(pending),
+        accepted=len(accepted),
+        earned_usd=current_user.wallet_balance,
+    )
+
+
+@router.get("/active-batch", response_model=list[TaskRead])
+def active_batch(
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> list[TaskRead]:
+    now = utc_now()
+    tasks = session.exec(
+        select(Task)
+        .where(
+            Task.claimed_by_id == current_user.id,
+            Task.status == TaskStatus.CLAIMED,
+            Task.locked_until.is_not(None),
+            Task.locked_until >= now,
+        )
+        .order_by(Task.id)
+    ).all()
+    return [serialize_task(task, session) for task in tasks]
+
+
+@router.post("/release-batch")
+def release_batch(
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict[str, int]:
+    now = utc_now()
+    tasks = session.exec(
+        select(Task).where(
+            Task.claimed_by_id == current_user.id,
+            Task.status == TaskStatus.CLAIMED,
+        )
+    ).all()
+    released = 0
+    for task in tasks:
+        task.status = TaskStatus.AVAILABLE
+        task.claimed_by_id = None
+        task.locked_until = None
+        session.add(task)
+        released += 1
+        write_audit(
+            session,
+            action=AuditAction.TASK_CLAIMED,
+            actor=current_user,
+            target_user_id=current_user.id,
+            entity_type="task",
+            entity_id=task.id,
+            description=f"Task {task.id} released by {current_user.username} at {now.isoformat()}.",
+        )
+    session.commit()
+    return {"released": released}
 
 
 @router.post("/claim", response_model=list[TaskRead])
@@ -53,14 +157,17 @@ def claim_tasks(
     session: Annotated[Session, Depends(get_session)],
 ) -> list[TaskRead]:
     now = utc_now()
+    filters = [
+        Project.status == ProjectStatus.ACTIVE,
+        (Task.status == TaskStatus.AVAILABLE)
+        | ((Task.status == TaskStatus.CLAIMED) & (Task.locked_until < now)),
+    ]
+    if payload.workflow is not None:
+        filters.append(Project.workflow == payload.workflow)
     statement = (
         select(Task)
         .join(Project, Task.project_id == Project.id)
-        .where(
-            Project.status == ProjectStatus.ACTIVE,
-            (Task.status == TaskStatus.AVAILABLE)
-            | ((Task.status == TaskStatus.CLAIMED) & (Task.locked_until < now)),
-        )
+        .where(*filters)
         .order_by(Task.id)
         .limit(payload.count)
         .with_for_update(skip_locked=True)
@@ -162,7 +269,7 @@ def submit_task(
     task.status = TaskStatus.PENDING_REVIEW
     task.locked_until = None
     session.add(task)
-    session.add(current_user)
+    record_task_completion(current_user, now)
     write_audit(
         session,
         action=AuditAction.TASK_SUBMITTED,
@@ -207,6 +314,7 @@ def submit_task(
                 category="REVIEW",
                 metadata={"task_id": task.id, "submission_id": submission.id},
             )
+    session.add(current_user)
     session.commit()
     session.refresh(submission)
     session.refresh(task)

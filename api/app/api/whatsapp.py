@@ -33,6 +33,16 @@ async def whatsapp_qr(_admin: Annotated[User, Depends(require_admin)]) -> dict[s
     return response.json()
 
 
+@router.post("/reset")
+async def whatsapp_reset(_admin: Annotated[User, Depends(require_admin)]) -> dict[str, Any]:
+    settings = get_settings()
+    async with httpx.AsyncClient(timeout=15) as client:
+        response = await client.post(f"{settings.whatsapp_sidecar_url}/wa/logout")
+    if response.status_code >= 400:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="WhatsApp sidecar reset failed")
+    return response.json()
+
+
 @router.post("/send")
 def whatsapp_send(payload: WhatsAppSendRequest, _admin: Annotated[User, Depends(require_admin)]) -> dict[str, str]:
     settings = get_settings()
