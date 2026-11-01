@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { LogOut, Shield } from "lucide-react";
+import { HelpCircle, LogOut, Shield } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { BuntuWordmark } from "./components/BuntuBrand";
 import { HeaderOverflowMenu } from "./components/HeaderOverflowMenu";
 import { MobileNav } from "./components/MobileNav";
 import { Loading } from "./components/Loading";
@@ -13,6 +14,7 @@ import { LandingPage } from "./features/landing/LandingPage";
 import { NotificationCenter } from "./features/notifications/NotificationCenter";
 import { ReviewQueue } from "./features/reviews/ReviewQueue";
 import { TaskSession } from "./features/tasks/TaskSession";
+import { FirstRunTour } from "./features/onboarding/FirstRunTour";
 import { LanguageToggle, useI18n } from "./i18n";
 import { SessionWorkflow, User, View } from "./types";
 
@@ -31,6 +33,7 @@ export default function App() {
   const [view, setView] = useState<View>("dashboard");
   const [loading, setLoading] = useState(Boolean(token));
   const [authScreen, setAuthScreen] = useState<AuthScreen>(null);
+  const [tourReplay, setTourReplay] = useState(false);
   const api = useApi(token);
 
   useEffect(() => {
@@ -86,14 +89,24 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f0] font-sans">
+      {tourReplay && (
+        <FirstRunTour
+          api={api}
+          replayOnly
+          onComplete={() => setTourReplay(false)}
+          onStartTask={() => {
+            setTourReplay(false);
+            setView("annotate-translate");
+          }}
+        />
+      )}
       <header
         className="sticky top-0 z-40 border-b border-black/10 bg-white/80 px-4 py-3 backdrop-blur sm:px-6"
         style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
       >
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <button type="button" onClick={() => setView("dashboard")} className="flex min-h-11 min-w-11 items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#5a5a40] text-lg font-black text-white">B</div>
-            <span className="hidden text-lg font-black sm:inline">BuntuAsk</span>
+          <button type="button" onClick={() => setView("dashboard")} className="flex min-h-11 items-center gap-2">
+            <BuntuWordmark />
           </button>
           <div className="flex items-center gap-2 text-xs font-black sm:gap-3 sm:text-sm">
             {showTrust && (
@@ -113,6 +126,14 @@ export default function App() {
                 </button>
               )}
               <LanguageToggle />
+              <button
+                type="button"
+                onClick={() => setTourReplay(true)}
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100"
+                title={t("tourReplay")}
+              >
+                <HelpCircle size={18} />
+              </button>
               <NotificationCenter api={api} />
               <button
                 type="button"
@@ -123,7 +144,7 @@ export default function App() {
                 <LogOut size={18} />
               </button>
             </div>
-            <HeaderOverflowMenu api={api} onLogout={logout} showAdmin={isAdmin} onOpenAdmin={setView} />
+            <HeaderOverflowMenu api={api} onLogout={logout} showAdmin={isAdmin} onOpenAdmin={setView} onReplayTour={() => setTourReplay(true)} />
           </div>
         </div>
       </header>

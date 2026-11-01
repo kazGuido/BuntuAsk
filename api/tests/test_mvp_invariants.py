@@ -35,6 +35,17 @@ def test_public_registration_cannot_request_admin_role() -> None:
         )
 
 
+def test_registration_requires_privacy_consent() -> None:
+    with pytest.raises(ValidationError):
+        UserCreate(
+            username="worker",
+            email="worker@example.com",
+            whatsapp_number="+25779000000",
+            password="strong-password",
+            privacy_consent=False,
+        )
+
+
 def test_storage_keys_are_scoped_for_non_admin_users() -> None:
     user = User(
         id=7,
@@ -76,6 +87,7 @@ def test_schema_contains_ownership_and_uniqueness_guards() -> None:
     assert "workflow" in Project.model_fields
     assert "status" in Project.model_fields
     assert "claimed_by_id" in Task.model_fields
+    assert "privacy_consent_at" in User.model_fields
     assert any(constraint.name == "uq_submissions_task_id" for constraint in Submission.__table__.constraints)
     assert any(constraint.name == "uq_reviews_submission_reviewer" for constraint in Review.__table__.constraints)
 
@@ -103,7 +115,7 @@ def test_notification_schema_and_email_message_builder() -> None:
 
 
 def test_typical_event_workflows_emit_notifications() -> None:
-    api_dir = Path("api/app/api")
+    api_dir = Path(__file__).resolve().parent.parent / "app" / "api"
     expected_hooks = {
         "auth.py": "Welcome to BuntuAsk",
         "tasks.py": "Submission received",

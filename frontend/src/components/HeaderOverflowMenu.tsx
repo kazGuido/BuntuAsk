@@ -1,4 +1,4 @@
-import { LogOut, Menu, Shield } from "lucide-react";
+import { HelpCircle, LogOut, Menu, Shield } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { NotificationCenter } from "../features/notifications/NotificationCenter";
@@ -11,11 +11,13 @@ export function HeaderOverflowMenu({
   onLogout,
   showAdmin,
   onOpenAdmin,
+  onReplayTour,
 }: {
   api: ApiClient;
   onLogout: () => void;
   showAdmin: boolean;
   onOpenAdmin: (view: View) => void;
+  onReplayTour: () => void;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -51,6 +53,16 @@ export function HeaderOverflowMenu({
           <div className="mb-2 flex justify-center">
             <NotificationCenter api={api} />
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              onReplayTour();
+              setOpen(false);
+            }}
+            className="mb-2 flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-sm font-black text-[#1cb0f6] hover:bg-gray-50"
+          >
+            <HelpCircle size={16} /> {t("tourReplay")}
+          </button>
           {showAdmin && (
             <button
               type="button"

@@ -1,5 +1,7 @@
 import { Clock, DollarSign, Languages, Mic, Shield, Tag } from "lucide-react";
+import { useState } from "react";
 
+import { BuntuWordmark, PrivacyModal } from "../../components/BuntuBrand";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { LanguageToggle, useI18n } from "../../i18n";
@@ -12,18 +14,17 @@ type LandingPageProps = {
 
 export function LandingPage({ onSignUp, onLogIn, onHowItWorks }: LandingPageProps) {
   const { t } = useI18n();
+  const [privacyOpen, setPrivacyOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#f5f5f0] font-sans">
+      <PrivacyModal open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
       <header
         className="sticky top-0 z-40 border-b border-black/10 bg-white/80 px-4 py-3 backdrop-blur sm:px-6"
         style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
       >
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#5a5a40] text-lg font-black text-white">B</div>
-            <span className="text-lg font-black text-[#3c3c3c]">BuntuAsk</span>
-          </div>
+          <BuntuWordmark />
           <div className="flex items-center gap-2">
             <LanguageToggle />
             <button
@@ -162,6 +163,9 @@ export function LandingPage({ onSignUp, onLogIn, onHowItWorks }: LandingPageProp
       </main>
 
       <footer className="border-t border-black/10 px-4 py-8 text-center text-xs font-bold text-gray-400">
+        <button type="button" onClick={() => setPrivacyOpen(true)} className="mb-2 block w-full font-black text-[#1cb0f6] hover:underline">
+          {t("privacyTitle")}
+        </button>
         BuntuAsk · {t("translateReviewEarn")}
       </footer>
     </div>

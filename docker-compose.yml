@@ -135,3 +135,17 @@ volumes:
   redis_data:
   minio_data:
   whatsapp_auth:
+
+# Optional host backup alternative (see docs/ops.md):
+# profiles: [backup]
+#   pg-backup:
+#     image: postgres:15-alpine
+#     profiles: ["backup"]
+#     depends_on: [db]
+#     entrypoint: ["/bin/sh", "-c", "pg_dump -h db -U $$POSTGRES_USER -d $$POSTGRES_DB | gzip > /backup/out.sql.gz"]
+#     environment:
+#       POSTGRES_USER: ${POSTGRES_USER:-buntu}
+#       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-buntu_dev_password}
+#       POSTGRES_DB: ${POSTGRES_DB:-buntuask}
+#     volumes:
+#       - ./backups:/backup

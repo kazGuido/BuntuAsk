@@ -2,7 +2,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle } from "lucide-react";
 import { KeyboardEvent, SyntheticEvent, useEffect, useMemo, useRef, useState } from "react";
 
-import { EmptyState, Loading } from "../../components/Loading";
+import { BrandedEmptyState } from "../../components/BuntuBrand";
+import { Loading } from "../../components/Loading";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { Dialog } from "../../components/ui/dialog";
@@ -160,8 +161,26 @@ export function TaskSession({
   }
 
   if (loading) return <Loading label={t("claimingBatch")} />;
-  if (error && !current) return <EmptyState title={t("noTasksAvailable")} message={error} onDone={onDone} />;
-  if (!current) return <EmptyState title={t("allCaughtUp")} message={t("noTasksNow")} onDone={onDone} />;
+  if (error && !current) {
+    return (
+      <BrandedEmptyState
+        title={t("noTasksAvailable")}
+        message={error}
+        guidance={t("emptyStateWorkerGuidance")}
+        onDone={onDone}
+      />
+    );
+  }
+  if (!current) {
+    return (
+      <BrandedEmptyState
+        title={t("allCaughtUp")}
+        message={t("noTasksNow")}
+        guidance={t("emptyStateWorkerGuidance")}
+        onDone={onDone}
+      />
+    );
+  }
   const flow = taskWorkflow(current);
 
   async function submitAudioPayload(payload: Record<string, unknown>) {

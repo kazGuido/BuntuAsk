@@ -21,6 +21,13 @@ class UserCreate(BaseModel):
     email: str
     whatsapp_number: str
     password: str = Field(min_length=8)
+    privacy_consent: bool = False
+
+    @model_validator(mode="after")
+    def validate_privacy_consent(self) -> "UserCreate":
+        if not self.privacy_consent:
+            raise ValueError("You must accept the privacy notice before creating an account")
+        return self
 
     @model_validator(mode="after")
     def validate_whatsapp_e164(self) -> "UserCreate":
