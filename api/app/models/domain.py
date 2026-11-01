@@ -1,10 +1,14 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
 from sqlalchemy import Column, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 class UserRole(str, Enum):
     ADMIN = "ADMIN"
@@ -261,7 +265,7 @@ class ImportJob(SQLModel, table=True):
     imported_count: int = Field(default=0)
     skipped_count: int = Field(default=0)
     error_message: str | None = Field(default=None, nullable=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
     completed_at: datetime | None = Field(default=None, nullable=True)
 
 
@@ -280,7 +284,7 @@ class AuditLog(SQLModel, table=True):
         sa_column=Column("metadata", JSONB, nullable=False),
     )
     ip_address: str | None = Field(default=None, nullable=True, max_length=64)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
 
 
 class Notification(SQLModel, table=True):
@@ -296,7 +300,7 @@ class Notification(SQLModel, table=True):
         sa_column=Column("metadata", JSONB, nullable=False),
     )
     is_read: bool = Field(default=False, index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
     read_at: datetime | None = Field(default=None, nullable=True)
 
     user: User = Relationship(back_populates="notifications")
@@ -314,6 +318,6 @@ class NotificationDelivery(SQLModel, table=True):
     provider_message_id: str | None = Field(default=None, nullable=True, max_length=255)
     error_message: str | None = Field(default=None, nullable=True)
     attempted_at: datetime | None = Field(default=None, nullable=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
 
     notification: Notification = Relationship(back_populates="deliveries")
