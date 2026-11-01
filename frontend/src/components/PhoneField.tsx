@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 
 import { useI18n } from "../i18n";
-import { COUNTRY_DIALS, defaultDialCode, isValidE164, toE164 } from "../lib/phone";
+import { defaultDialCode, isValidE164, toE164 } from "../lib/phone";
 import { cn } from "../lib/utils";
+import { CountryDialSelect } from "./CountryDialSelect";
 
 type Props = {
   name?: string;
@@ -23,19 +24,14 @@ export function PhoneField({ name = "whatsapp_number", required, onE164Change }:
         <label className="sr-only" htmlFor="country-dial">
           {t("countryCode")}
         </label>
-        <select
+        <CountryDialSelect
           id="country-dial"
           value={dial}
-          onChange={(event) => setDial(event.target.value)}
-          className="min-h-12 min-w-[8.5rem] rounded-2xl border-2 border-gray-200 bg-white px-2 text-sm font-bold outline-none focus:border-[#1cb0f6]"
-          aria-label={t("countryCode")}
-        >
-          {COUNTRY_DIALS.map((country) => (
-            <option key={country.code} value={country.dial}>
-              {country.flag} {country.dial}
-            </option>
-          ))}
-        </select>
+          onChange={(nextDial) => {
+            setDial(nextDial);
+            onE164Change?.(toE164(nextDial, national));
+          }}
+        />
         <input
           inputMode="tel"
           autoComplete="tel-national"
