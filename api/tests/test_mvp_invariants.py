@@ -18,6 +18,8 @@ from app.models import (
     TaskStatus,
     User,
     UserRole,
+    AuditAction,
+    AuditLog,
 )
 from app.api.schemas import NotificationSendRequest, ProjectCreate, UserCreate
 
@@ -139,3 +141,13 @@ def test_audio_project_create_schema_supports_asr_and_recording() -> None:
             base_reward_annotator=0.02,
             base_reward_reviewer=0.005,
         )
+
+
+def test_audit_log_default_timestamp_uses_timezone_utc() -> None:
+    log = AuditLog(
+        action=AuditAction.USER_LOGIN,
+        entity_type="user",
+        description="Login audit smoke test",
+    )
+    assert log.created_at.tzinfo is not None
+    assert log.created_at.tzinfo.utcoffset(log.created_at).total_seconds() == 0
